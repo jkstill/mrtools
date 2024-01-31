@@ -1,0 +1,36 @@
+
+--init='
+# sub total, by depth ($dep)
+# st for future use
+my @st=(0,0,0,0,0,0,0);
+my ($currDep,$prevDep) = (0,-1);
+my $total = 0;
+
+# 
+sub getTotal($$) {
+	# $t is some time value - elapse, cpu,...
+	my ($calledDep,$t) = @_;
+	$total += $t;
+	my $r = 0;
+	if ( $calledDep == $depmin) {
+		$r = $total;
+		$total = 0;
+	}
+	return $r;
+}
+'
+
+
+#--group='sprintf("%17.6f %10d %10d %10d  %-40.40s %-.46s", $tim, $line, $parse_id, $exec_id, "· "x$dep.$name.(scalar(@bind)?"(".join(",",@bind).")":""), "· "x$dep.$sql)'
+# add in elapsed time
+# --group='sprintf("%17.6f %10d %10d %10d  %-40.40s %-.46s %6.6f %13s", $tim, $line, $parse_id, $exec_id, "· "x$dep.$name.(scalar(@bind)?"(".join(",",@bind).")":""), "· "x$dep.substr($sql . " "x46,0,46),$e, 
+ --group='sprintf("%17.6f %10d %10d %10d  %-40.40s %-.46s %6.6f %13s", $tim, $line, $parse_id, $exec_id, "· "x$dep.$name.(scalar(@bind)?"(".join(",",@bind).")":""), "· "x$dep.substr($sql . " "x46,0,46),$e, 
+ 	getTotal($dep,$e) ? sprintf(q{%6.6f},getTotal($dep,$e)) : "")'
+# --group='sprintf("%17.6f %10d %10d %10d  %-40.40s %-.46s %6.6f %6.6f", $tim, $line, $parse_id, $exec_id, "· "x$dep.$name.(scalar(@bind)?"(".join(",",@bind).")":""), "· "x$dep.substr($sql . " "x46,0,46),$e,0.0001)'
+#               12345678901234567 1234567890 1234567890 1234567890 1234567890123456789012345678901234567890 123..
+#               12345678901234567 1234567890 1234567890 1234567890 1234567890123456789012345678901234567890 123..                                            00000.00000
+ #--group-label="          END-TIM       LINE   PARSE-ID    EXEC-ID  CALL-NAME(BOUND-VALUES)                  STATEMENT-TEXT                                  Elapsed"
+ # new format for 9.3.0.17.  gl no longer takes a string, but takes an expression. so, the quoting has changed
+ --group-label='"          END-TIM       LINE   PARSE-ID    EXEC-ID  CALL-NAME(BOUND-VALUES)                  STATEMENT-TEXT"'
+--alldepths --nohistogram --sort=1na --name=:dbcall --top=0
+

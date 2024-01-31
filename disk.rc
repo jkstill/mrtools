@@ -1,0 +1,44 @@
+# Group using disk-read-appropriate bucket boundaries.
+#
+# Each line containing a Unicode character below is followed by an equivalent
+# line, commented out, which contains an equivalent ASCII representation. On
+# systems that don't properly render the Unicode characters, simply swap the
+# comment ('#') character to the Unicode line.
+
+--init='
+	# Define bucket labels.
+	my @l = (
+		" 1.     0ms      5ms",
+		" 2.     5ms     10ms",
+		" 3.    10ms     15ms",
+		" 4.    15ms     20ms",
+		" 5.    20ms     25ms",
+		" 6.    25ms     50ms",
+		" 7.    50ms    100ms",
+		" 8.   100ms  1,000ms",
+		" 9. 1,000ms       +∞", 
+#		" 9. 1,000ms     +INF", 
+	);
+	# Function uses closure to provide access to @l.
+	sub label($) { return $l[$_[0]-1]; }
+	# Vivify all buckets so that output always contains all histogram rows.
+	$calls{$_} = undef for @l;
+'
+
+# Group using the buckets listed above.
+--group='
+		  $af <  .005 ? label( 1)
+		: $af <  .010 ? label( 2)
+		: $af <  .015 ? label( 3)
+		: $af <  .020 ? label( 4)
+		: $af <  .025 ? label( 5)
+		: $af <  .050 ? label( 6)
+		: $af <  .100 ? label( 7)
+		: $af < 1.000 ? label( 8)
+		:               label( 9)
+'
+--group-label="RANGE {min ≤ e < max}"
+#--group-label="RANGE {min <= e < max}"
+--sort=1na
+--top=0
+--name=read

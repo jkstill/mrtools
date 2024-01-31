@@ -1,0 +1,343 @@
+
+--init='
+
+use warnings;
+use strict;
+use Carp;
+# this 'use lib' does not work as is inside eval{}
+#use lib ''/home/jkstill/.method-r/workbench/9.3.0.17/perlmods/lib/site_perl/5.24.0/Data'';
+
+# $e is multiplied by 1e6
+# the purpose of this is to impose some time based data on flamegraph.pl
+# 1 microsecond is 1 unit - send the number units, as flamegraphs are count based
+
+=head2 snmfc-savings.rc
+
+ estimate the saving to be realized by using oracle arraysize other than default.
+
+ Can call with these set on the command line
+
+ - DEBUG=1
+ - VERBOSE=1
+ - ARRAYSIZE=N - default to 100
+
+
+   ARRAYSIZE=1000 mrskew --rc=snmfc-savings.rc  trace/benchmark/cdb2_ora_24316_RC-1.trc  >/dev/null
+
+   max array size: 100
+   curr SNMFC 16.2403130000004
+    new SNMFC 1.87131178600827
+
+ This works best when the current array size is small, 1 or 2.
+
+ More testing is needed, but so far, the results are satisfactor for checking the improvement from 1 or 2 arraysize to 100-500.
+
+
+=cut
+
+=encoding utf8
+
+=cut
+
+
+my $debug;
+my $verbose;
+my $maxArraySize;
+
+# set to STDERR and redirect mrskew output to /dev/null to just see this output
+my $prtCHN=\*STDERR;
+
+BEGIN {
+
+	print $prtCHN ("This is the BEGIN\n") if $debug;
+
+	$debug = exists($ENV{DEBUG}) ? $ENV{DEBUG} : 0;	
+	$verbose = exists($ENV{VERBOSE}) ? $ENV{VERBOSE} : 0;	
+	$maxArraySize = exists($ENV{ARRAYSIZE}) ? $ENV{ARRAYSIZE} : 100;	
+
+}
+
+
+my %mappedNames = (
+	q{SQL*Net message from client} => q{SNMFC},
+	q{SQL*Net message to client} => q{SNMTC},
+);
+
+
+my %syscalls=();
+
+# use to get avg time
+my %syscallWaits=();
+
+#========================================================
+# time per row in usecs
+# established by testing
+my %snmfcTimes = (
+	1 => 300,
+	2 => 243,
+	5 => 131,
+	10 => 77,
+	20 => 57,
+	50 => 40,
+	100 => 28,
+	150 => 30,
+	200 => 25,
+	250 => 24,
+	300 => 23,
+	350 => 27,
+	400 => 24,
+	450 => 23,
+	500 => 27,
+);
+
+
+# the unit size is not important
+# this is just used to approximate the speed advantage for array sizes
+# slow / fast = speed factor
+
+sub getTimePerRow {
+	my ($arraySize) = @_;
+
+	my $prevTime=$snmfcTimes{1};
+	foreach my $stdSize ( sort { $a <=> $b } keys %snmfcTimes ) {
+		#print "stdSize: $stdSize  per row: $snmfcTimes{$stdSize}\n";
+		if ( $stdSize > $arraySize ) {
+			return $prevTime;
+		}
+		$prevTime=$snmfcTimes{$stdSize};
+	}
+	
+	return $snmfcTimes{500};
+}
+
+sub getRatio {
+	my ($smallerArraySize, $largerArraySize) = @_;
+
+	my $high = getTimePerRow($largerArraySize);
+	my $low = getTimePerRow($smallerArraySize);
+
+	print $prtCHN qq{
+
+  getRatio()
+
+  small: $smallerArraySize
+  large: $largerArraySize
+
+    low:  $low
+   high: $high
+
+} if $debug;
+
+
+	return getTimePerRow($largerArraySize) / getTimePerRow($smallerArraySize);
+}
+
+
+
+# times are in microseconds
+sub syscallStats {
+	my ($sqlid, $exec_id, $syscallName, $waitTime, $myRows) =  @_;
+
+	my $key = $sqlid . q{:} . $exec_id;
+
+	$syscalls{$key}->{$syscallName}{count}++;
+
+	$syscalls{$key}->{$syscallName}{time} += $waitTime;
+	
+	# only valid for FETCH
+	$syscalls{$key}->{$syscallName}{rows} += $myRows;
+
+print $prtCHN qq{
+
+  syscallStats()
+
+  syscallName: $syscallName
+              rows: $myRows
+
+} if $debug;
+
+	push @{$syscallWaits{mapName($syscallName)}}, $waitTime;
+
+	return;
+}
+
+
+sub mapName {
+	my ($syscallName) = @_;
+
+	if (exists( $mappedNames{$syscallName} )) {
+		return $mappedNames{$syscallName};
+	} else {
+		return $syscallName;
+	}
+}
+
+
+
+END {
+
+	print $prtCHN ("This is the END\n") if $debug;
+
+	print $prtCHN ("DEBUG enabled\n") if $debug;	
+
+	my %avgWaitTimes;
+
+	foreach my $key ( sort keys %syscallWaits )  {
+		my @waits = @{$syscallWaits{$key}};
+		my $totalWaitTime ;
+		map { $totalWaitTime+=$_ } @waits;
+
+		#my $waitCount = @waits;
+
+print $prtCHN qq{
+
+  END:
+
+  totalWaitTime: $totalWaitTime
+     wait count: @waits
+
+} if $debug;
+
+
+		my $avgWait = $totalWaitTime / @waits;
+		printf $prtCHN "%30s %9.6f avg: %6.6f\n", $key, $totalWaitTime, $avgWait if $verbose;
+		$avgWaitTimes{$key} = $avgWait;
+	}
+
+	my $newSNMFCWaitTime=0;
+	my $totalNewSNMFCWaitTime=0;
+	my $totalSNMFCWaitTime=0;
+	my $totalPacketCount=0;
+	my $snmfcWaitTime = 0;
+	my ($callCount, $rowCount,$packetCount, $avgArraySize, $avgWaitTimeRpt);
+
+	foreach my $key ( keys %syscalls ) {
+		print $prtCHN "key: $key\n" if $debug;
+		my %calls = %{$syscalls{$key}};
+
+		#print $prtCHN "keys: " . join(' - ', keys %calls) . "\n";
+
+		print $prtCHN "call keys: " if $debug;
+
+		if ($debug) {
+			foreach my $syscall ( sort keys %calls ) { 
+				print $prtCHN "  '$syscall' ";
+			}
+			print $prtCHN "\n";
+		}
+
+		($rowCount,$packetCount, $avgArraySize) = (0,0,0);
+
+		$snmfcWaitTime = 0;
+
+		foreach my $syscall ( reverse sort keys %calls ) {
+			
+			if ($syscall =~ /message from client/) {
+				$packetCount = $calls{$syscall}->{count};
+				$packetCount = 1 unless $packetCount;
+				$snmfcWaitTime = $calls{$syscall}->{time};
+			} elsif ($syscall =~ /FETCH/) {
+				# count rows, not packets
+				$callCount = $calls{$syscall}->{count};
+				$rowCount = $calls{$syscall}->{rows};	
+			}
+			else {
+				print $prtCHN "I do not know what to do with $syscall\n";
+			}
+
+			if ($verbose) {
+				print $prtCHN "\n";
+				print $prtCHN "  syscall: $syscall\n";
+			}
+
+		}
+
+		if ($verbose) {
+			print $prtCHN "\n";
+			print $prtCHN "    count: $packetCount\n";
+			print $prtCHN "     rows: $rowCount\n";
+			printf $prtCHN "     time: %6.6f\n", $snmfcWaitTime;
+		}
+
+		$rowCount = 1 unless $rowCount;
+
+		print $prtCHN qq{
+
+  END: \%calls loop
+
+     rowCount: $rowCount
+  packetCount: $packetCount
+
+
+} if $debug;
+
+		$avgArraySize = int($rowCount / ($packetCount ? $packetCount : 1)) +1;
+
+		print $prtCHN "     avg array size: $avgArraySize\n" if $verbose;
+		printf $prtCHN "     avg snmfc time: %6.6f\n" , $avgWaitTimes{'SNMFC'} if $verbose;
+
+		$totalSNMFCWaitTime += $snmfcWaitTime;
+		$totalPacketCount += $packetCount;
+
+		$avgWaitTimeRpt = sprintf("%6.6f",$avgWaitTimes{'SNMFC'});
+
+		print $prtCHN qq{
+
+        packetCount: $packetCount
+        avgArraySize: $avgArraySize
+        maxArraySize: $maxArraySize
+        avtWaitTimes: $avgWaitTimeRpt
+
+} if $debug;
+		
+	} continue {
+
+		print $prtCHN  qq{
+
+        CONTINUE BLOCK
+
+        packetCount: $packetCount
+        avgArraySize: $avgArraySize
+        maxArraySize: $maxArraySize
+        avgWaitTimes: $avgWaitTimeRpt
+
+} if $debug;
+
+		if ($avgArraySize < $maxArraySize ) {
+			# the log($maxArraySize) is a fudge factor derived by comparing results with different array sizes
+			# it is only really useful for specifying an array size of 100+, and where the current array size is small (1,2, typical row by row)
+			my $ratio = getRatio($avgArraySize,$maxArraySize);
+			#$newSNMFCWaitTime = (($packetCount * $avgArraySize) / $maxArraySize)  * ($avgWaitTimes{'SNMFC'}  * log($maxArraySize)) ;
+			print $prtCHN "RATIO: $ratio\n" if $verbose;
+			$newSNMFCWaitTime = $snmfcWaitTime * $ratio ;
+		} else {
+			$newSNMFCWaitTime = $snmfcWaitTime;
+		}
+
+		$totalNewSNMFCWaitTime += $newSNMFCWaitTime;
+
+		print $prtCHN " new SNMFC: $newSNMFCWaitTime\n" if $verbose;
+
+	}
+
+	print $prtCHN "\n";
+	print $prtCHN "max array size: $maxArraySize\n";
+	print $prtCHN "curr SNMFC $totalSNMFCWaitTime\n";
+	print $prtCHN " new SNMFC $totalNewSNMFCWaitTime\n";
+
+}
+
+
+'
+
+--group='$sqlid . q{:} . $exec_id . q{:} . $line . $text . syscallStats($sqlid, $exec_id, $name, $af, $row)'
+--nohistogram
+--top=1
+#--name='(message from client|FETCH)'
+#--where='$af < 1'
+# the 'where' with $af needs to change, as FETCHES commonly exceed 1 second
+--where='($name =~ q{message from client} and $af < 1) or ( $name =~ q{FETCH})'
+
+
+
+

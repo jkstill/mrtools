@@ -1,0 +1,24 @@
+
+# if the line with '--sort' is below the init section, then the call to '--rc=cull-snmfc.rc' will fail
+
+--group='$line . q{,} . sprintf(q{%d}, ($ela ? $ela : $e) * 1e6) . q{,} .  $sqlid . q{,} . $cursor_id . q{,} . replaceSpaces($name)'
+--sort='no' --nohead --nofoot --top=0 --alldepths --nohistogram  --rc=cull-snmfc.rc
+
+--init='
+
+# $e is multiplied by 1e6
+# the purpose of this is to impose some time based data on flamegraph.pl
+# 1 microsecond is 1 unit - send the number units, as flamegraphs are count based
+
+=encoding utf8
+
+=cut
+
+sub replaceSpaces ($) {
+	my ($s) = @_;
+	$s =~ s/\s+/_/g;
+	return $s;
+}
+
+'
+

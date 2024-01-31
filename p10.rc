@@ -1,0 +1,47 @@
+# Group using powers-of-10 bucket boundaries.
+#
+# Each line containing a Unicode character below is followed by an equivalent
+# line, commented out, which contains an equivalent ASCII representation. On
+# systems that don't properly render the Unicode characters, simply swap the
+# comment ('#') character to the Unicode line.
+
+--init='
+	# Define bucket labels.
+	my @l = (
+		" 1.     0.000000     0.000001",
+		" 2.     0.000001     0.000010",
+		" 3.     0.000010     0.000100",
+		" 4.     0.000100     0.001000",
+		" 5.     0.001000     0.010000",
+		" 6.     0.010000     0.100000",
+		" 7.     0.100000     1.000000",
+		" 8.     1.000000    10.000000",
+		" 9.    10.000000   100.000000",
+		"10.   100.000000 1,000.000000",
+		"11. 1,000.000000           +∞",
+#		"11. 1,000.000000         +INF",
+	);
+	# Function uses closure to provide access to @l.
+	sub label($) { return $l[$_[0]-1]; }
+	# Vivify all buckets so that output always contains all histogram rows.
+	$calls{$_} = undef for @l;
+'
+
+# Group using the buckets listed above.
+--group='
+		$af < 1e-6 ? label( 1)
+	  : $af < 1e-5 ? label( 2)
+	  : $af < 1e-4 ? label( 3)
+	  : $af < 1e-3 ? label( 4)
+	  : $af < 1e-2 ? label( 5)
+	  : $af < 1e-1 ? label( 6)
+	  : $af < 1e-0 ? label( 7)
+	  : $af < 1e+1 ? label( 8)
+	  : $af < 1e+2 ? label( 9)
+	  : $af < 1e+3 ? label(10)
+	  :              label(11)
+'
+--group-label='"RANGE {min ≤ e < max}"'
+#--group-label='RANGE {min <= e < max}'
+--sort=1na
+--top=0

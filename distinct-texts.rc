@@ -1,0 +1,23 @@
+# Count SQLID values that share the same SSQLID.
+#
+
+--init='
+	my %h = ();
+	sub f($$) {
+		my ($ss, $s) = @_;
+		if ($h{$ss}{$s}) {
+			# If we've seen this SSQLID/SQLID combo before, then return a count of zero new things seen.
+			return 0;
+		} else {
+			# Otherwise, record its existence and return that we've seen a new one.
+			return $h{$ss}{$s} = 1;
+		}
+	}
+'
+--name=parse
+--group='$ssqlid'
+--group-label=S-SQL-ID
+--select='f($ssqlid,$sqlid)'
+--select-label=DISTINCT-TEXTS
+--precision=0
+--sort=4nd

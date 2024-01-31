@@ -1,0 +1,29 @@
+# Report only the duration of a given data block's first read into the buffer
+# cache; that is, discard the durations of second and subsequent reads.
+#
+
+--init='
+	# Hash of data block addresses (DBAs).
+	my %h = ();	
+	# Return duration only if this is the first read call for the block.
+	sub f($$) {				
+		my ($f, $b) = @_;
+		# file id, block id: "$f:$b" is a DBA.
+		if ($h{"$f:$b"}) {
+			# If we've seen this DBA before, then return a zero duration.
+			return 0;
+		} else {
+			# Otherwise, record its existence and return its duration.
+			return $h{"$f:$b"} = $af;
+		}
+	}
+'
+--name='db file sequential read'
+--alldepths
+--group='"$p1:$p2"'
+--group-label="FILE:BLOCK"
+--select='f($p1,$p2)'
+--select-label="DURATION-1ST-READ-ONLY"
+
+
+
