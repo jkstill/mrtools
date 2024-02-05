@@ -58,9 +58,9 @@ sub getString($) {
 }
 '
 
---group='sprintf("%17.6f %10d %10d %10d  %-40.40s %-.46s %6.6f %13s", $tim, $line, $parse_id, $exec_id, "· "x$dep.$name.(scalar(@bind)?"(".join(",",@bind).")":""), "· "x$dep.substr($sql . " "x46,0,46),$e, getString( getTotal($e) ))'
+--group='sprintf("%17.6f %10d %10d %10d  %-40.40s %-.60s %6.6f %13s", $tim, $line, $parse_id, $exec_id, "· "x$dep.$name.(scalar(@bind)?"(".join(",",@bind).")":""), "· "x$dep.substr($sql . " "x60,0,60),$e, getString( getTotal($e) ))'
 #               12345678901234567 1234567890 1234567890 1234567890 1234567890123456789012345678901234567890 123..                                            00000.00000
---group-label='"          END-TIM       LINE   PARSE-ID    EXEC-ID  CALL-NAME(BOUND-VALUES)                  STATEMENT-TEXT                                  Elapsed         Total"'
+--group-label='"          END-TIM       LINE   PARSE-ID    EXEC-ID  CALL-NAME(BOUND-VALUES)                  STATEMENT-TEXT                                                Elapsed         Total"'
 
 --alldepths --nohistogram --sort=1na --name=:dbcall --top=0
 
