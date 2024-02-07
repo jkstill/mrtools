@@ -3,7 +3,6 @@
 
 use warnings;
 use strict;
-use Carp;
 # this 'use lib' does not work as is inside eval{}
 #use lib ''/home/jkstill/.method-r/workbench/9.3.0.17/perlmods/lib/site_perl/5.24.0/Data'';
 
@@ -20,7 +19,7 @@ use Carp;
  - DEBUG=1
  - VERBOSE=1
  - ARRAYSIZE=N - default to 100
-
+ - TCPTIME=N - default 0.001
 
    ARRAYSIZE=1000 mrskew --rc=snmfc-savings.rc  trace/benchmark/cdb2_ora_24316_RC-1.trc  >/dev/null
 
@@ -32,6 +31,25 @@ use Carp;
 
  More testing is needed, but so far, the results are satisfactor for checking the improvement from 1 or 2 arraysize to 100-500.
 
+=cut
+
+=head2 filtering
+
+ Since this RC file is using `--where`, it will be necessary to use `--where1` for any additional filtering
+
+ eg:
+
+ $  mrskew --rc=snmfc-savings.rc --where1=$sqlid eq q{8j53dscbsbqmb} trace/ORCL_ora_42088.trc
+ $sqlid . q{:} . $exec_id . q{:} . $line . $text . syscallStats($sqlid, $exec_id, $name, $af, $row)
+ -----------------------------------------------------------------------------------------------------------------------------------------------------------
+ 8j53dscbsbqmb:313824:313830WAIT #47761333763336: nam=SQL*Net message from client ela= 799028 driver id=1413697536 #bytes=1 p3=0 obj#=-1 tim=3591980340533
+ 1,601 others
+ -----------------------------------------------------------------------------------------------------------------------------------------------------------
+ TOTAL (1,602)
+
+ max array size: 100
+ curr SNMFC 20.693577
+  new SNMFC 2.38444508641975
 
 =cut
 
@@ -43,6 +61,7 @@ use Carp;
 my $debug;
 my $verbose;
 my $maxArraySize;
+my $tcpTime;
 
 # set to STDERR and redirect mrskew output to /dev/null to just see this output
 my $prtCHN=\*STDERR;
@@ -54,6 +73,7 @@ BEGIN {
 	$debug = exists($ENV{DEBUG}) ? $ENV{DEBUG} : 0;	
 	$verbose = exists($ENV{VERBOSE}) ? $ENV{VERBOSE} : 0;	
 	$maxArraySize = exists($ENV{ARRAYSIZE}) ? $ENV{ARRAYSIZE} : 100;	
+	$tcpTime = exists($ENV{TCPTIME}) ? $ENV{TCPTIME} : 0.001;
 
 }
 
@@ -107,7 +127,7 @@ sub getTimePerRow {
 		$prevTime=$snmfcTimes{$stdSize};
 	}
 	
-	return $snmfcTimes{500};
+	return $snmfcTimes{$arraySize};
 }
 
 sub getRatio {
@@ -116,6 +136,8 @@ sub getRatio {
 	my $high = getTimePerRow($largerArraySize);
 	my $low = getTimePerRow($smallerArraySize);
 
+	my $ratio  = (getTimePerRow($largerArraySize)) / ( getTimePerRow($smallerArraySize));
+	#my $ratio  = ($high * getTimePerRow($largerArraySize)) / ( $low * getTimePerRow($smallerArraySize));
 	print $prtCHN qq{
 
   getRatio()
@@ -126,10 +148,12 @@ sub getRatio {
     low:  $low
    high: $high
 
+  ratio: $ratio
+
 } if $debug;
 
 
-	return getTimePerRow($largerArraySize) / getTimePerRow($smallerArraySize);
+	return $ratio;
 }
 
 
@@ -309,7 +333,7 @@ print $prtCHN qq{
 			my $ratio = getRatio($avgArraySize,$maxArraySize);
 			#$newSNMFCWaitTime = (($packetCount * $avgArraySize) / $maxArraySize)  * ($avgWaitTimes{'SNMFC'}  * log($maxArraySize)) ;
 			print $prtCHN "RATIO: $ratio\n" if $verbose;
-			$newSNMFCWaitTime = $snmfcWaitTime * $ratio ;
+			$newSNMFCWaitTime = ($snmfcWaitTime * $ratio); # + $tcpTime ;
 		} else {
 			$newSNMFCWaitTime = $snmfcWaitTime;
 		}
@@ -320,10 +344,11 @@ print $prtCHN qq{
 
 	}
 
-	print $prtCHN "\n";
-	print $prtCHN "max array size: $maxArraySize\n";
-	print $prtCHN "curr SNMFC $totalSNMFCWaitTime\n";
-	print $prtCHN " new SNMFC $totalNewSNMFCWaitTime\n";
+	#print $prtCHN "\n";
+	print  "\n";
+	print  "max array size: $maxArraySize\n";
+	print  "curr SNMFC $totalSNMFCWaitTime\n";
+	print  " new SNMFC $totalNewSNMFCWaitTime\n";
 
 }
 
