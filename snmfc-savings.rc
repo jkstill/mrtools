@@ -64,11 +64,12 @@ my $maxArraySize;
 my $tcpTime;
 
 # set to STDERR and redirect mrskew output to /dev/null to just see this output
-my $prtCHN=\*STDERR;
+my $errCHN=\*STDERR;
+my $rptCHN=\*STDOUT;
 
 BEGIN {
 
-	print $prtCHN ("This is the BEGIN\n") if $debug;
+	print $errCHN ("This is the BEGIN\n") if $debug;
 
 	$debug = exists($ENV{DEBUG}) ? $ENV{DEBUG} : 0;	
 	$verbose = exists($ENV{VERBOSE}) ? $ENV{VERBOSE} : 0;	
@@ -138,7 +139,7 @@ sub getRatio {
 
 	my $ratio  = (getTimePerRow($largerArraySize)) / ( getTimePerRow($smallerArraySize));
 	#my $ratio  = ($high * getTimePerRow($largerArraySize)) / ( $low * getTimePerRow($smallerArraySize));
-	print $prtCHN qq{
+	print $errCHN qq{
 
   getRatio()
 
@@ -171,7 +172,7 @@ sub syscallStats {
 	# only valid for FETCH
 	$syscalls{$key}->{$syscallName}{rows} += $myRows;
 
-print $prtCHN qq{
+print $errCHN qq{
 
   syscallStats()
 
@@ -200,9 +201,9 @@ sub mapName {
 
 END {
 
-	print $prtCHN ("This is the END\n") if $debug;
+	print $errCHN ("This is the END\n") if $debug;
 
-	print $prtCHN ("DEBUG enabled\n") if $debug;	
+	print $errCHN ("DEBUG enabled\n") if $debug;	
 
 	my %avgWaitTimes;
 
@@ -213,7 +214,7 @@ END {
 
 		#my $waitCount = @waits;
 
-print $prtCHN qq{
+print $errCHN qq{
 
   END:
 
@@ -224,7 +225,7 @@ print $prtCHN qq{
 
 
 		my $avgWait = $totalWaitTime / @waits;
-		printf $prtCHN "%30s %9.6f avg: %6.6f\n", $key, $totalWaitTime, $avgWait if $verbose;
+		printf $errCHN "%30s %9.6f avg: %6.6f\n", $key, $totalWaitTime, $avgWait if $verbose;
 		$avgWaitTimes{$key} = $avgWait;
 	}
 
@@ -236,18 +237,18 @@ print $prtCHN qq{
 	my ($callCount, $rowCount,$packetCount, $avgArraySize, $avgWaitTimeRpt);
 
 	foreach my $key ( keys %syscalls ) {
-		print $prtCHN "key: $key\n" if $debug;
+		print $errCHN "key: $key\n" if $debug;
 		my %calls = %{$syscalls{$key}};
 
-		#print $prtCHN "keys: " . join(' - ', keys %calls) . "\n";
+		#print $errCHN "keys: " . join(' - ', keys %calls) . "\n";
 
-		print $prtCHN "call keys: " if $debug;
+		print $errCHN "call keys: " if $debug;
 
 		if ($debug) {
 			foreach my $syscall ( sort keys %calls ) { 
-				print $prtCHN "  '$syscall' ";
+				print $errCHN "  '$syscall' ";
 			}
-			print $prtCHN "\n";
+			print $errCHN "\n";
 		}
 
 		($rowCount,$packetCount, $avgArraySize) = (0,0,0);
@@ -268,26 +269,26 @@ print $prtCHN qq{
 				$rowCount = 1 unless $rowCount
 			}
 			else {
-				print $prtCHN "I do not know what to do with $syscall\n";
+				print $errCHN "I do not know what to do with $syscall\n";
 			}
 
 			if ($verbose) {
-				print $prtCHN "\n";
-				print $prtCHN "  syscall: $syscall\n";
+				print $errCHN "\n";
+				print $errCHN "  syscall: $syscall\n";
 			}
 
 		}
 
 		if ($verbose) {
-			print $prtCHN "\n";
-			print $prtCHN "    count: $packetCount\n";
-			print $prtCHN "     rows: $rowCount\n";
-			printf $prtCHN "     time: %6.6f\n", $snmfcWaitTime;
+			print $errCHN "\n";
+			print $errCHN "    count: $packetCount\n";
+			print $errCHN "     rows: $rowCount\n";
+			printf $errCHN "     time: %6.6f\n", $snmfcWaitTime;
 		}
 
 		$rowCount = 1 unless $rowCount;
 
-		print $prtCHN qq{
+		print $errCHN qq{
 
   END: \%calls loop
 
@@ -299,15 +300,15 @@ print $prtCHN qq{
 
 		$avgArraySize = int($rowCount / ($packetCount ? $packetCount : 1)) +1;
 
-		print $prtCHN "     avg array size: $avgArraySize\n" if $verbose;
-		printf $prtCHN "     avg snmfc time: %6.6f\n" , $avgWaitTimes{'SNMFC'} if $verbose;
+		print $errCHN "     avg array size: $avgArraySize\n" if $verbose;
+		printf $errCHN "     avg snmfc time: %6.6f\n" , $avgWaitTimes{'SNMFC'} if $verbose;
 
 		$totalSNMFCWaitTime += $snmfcWaitTime;
 		$totalPacketCount += $packetCount;
 
 		$avgWaitTimeRpt = sprintf("%6.6f",$avgWaitTimes{'SNMFC'});
 
-		print $prtCHN qq{
+		print $errCHN qq{
 
         packetCount: $packetCount
         avgArraySize: $avgArraySize
@@ -318,7 +319,7 @@ print $prtCHN qq{
 		
 	} continue {
 
-		print $prtCHN  qq{
+		print $errCHN  qq{
 
         CONTINUE BLOCK
 
@@ -334,7 +335,7 @@ print $prtCHN qq{
 			# it is only really useful for specifying an array size of 100+, and where the current array size is small (1,2, typical row by row)
 			my $ratio = getRatio($avgArraySize,$maxArraySize);
 			#$newSNMFCWaitTime = (($packetCount * $avgArraySize) / $maxArraySize)  * ($avgWaitTimes{'SNMFC'}  * log($maxArraySize)) ;
-			print $prtCHN "RATIO: $ratio\n" if $verbose;
+			print $errCHN "RATIO: $ratio\n" if $verbose;
 			$newSNMFCWaitTime = ($snmfcWaitTime * $ratio); # + $tcpTime ;
 		} else {
 			$newSNMFCWaitTime = $snmfcWaitTime;
@@ -342,17 +343,17 @@ print $prtCHN qq{
 
 		$totalNewSNMFCWaitTime += $newSNMFCWaitTime;
 
-		print $prtCHN " new SNMFC: $newSNMFCWaitTime\n" if $verbose;
+		print $errCHN " new SNMFC: $newSNMFCWaitTime\n" if $verbose;
 
 	}
 
-	#print $prtCHN "\n";
-	print $prtCHN  "\n";
-	print $prtCHN  "    max array: size: $maxArraySize\n";
-	print $prtCHN  "   curr SNMFC: $totalSNMFCWaitTime\n";
-	print $prtCHN  "    new SNMFC: $totalNewSNMFCWaitTime\n";
-	print $prtCHN  "  SNMFC saved: " . ($totalSNMFCWaitTime - $totalNewSNMFCWaitTime) . "\n";
-	print $prtCHN "\n";
+	#print $errCHN "\n";
+	print $rptCHN  "\n";
+	print $rptCHN  "    max array: size: $maxArraySize\n";
+	print $rptCHN  "   curr SNMFC: $totalSNMFCWaitTime\n";
+	print $rptCHN  "    new SNMFC: $totalNewSNMFCWaitTime\n";
+	print $rptCHN  "  SNMFC saved: " . ($totalSNMFCWaitTime - $totalNewSNMFCWaitTime) . "\n";
+	print $rptCHN "\n";
 
 }
 
