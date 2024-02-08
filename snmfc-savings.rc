@@ -264,6 +264,8 @@ print $prtCHN qq{
 				# count rows, not packets
 				$callCount = $calls{$syscall}->{count};
 				$rowCount = $calls{$syscall}->{rows};	
+				# change this to 1 for rows that are 0, as there still is an SNMFC and we are counting these
+				$rowCount = 1 unless $rowCount
 			}
 			else {
 				print $prtCHN "I do not know what to do with $syscall\n";
@@ -345,10 +347,12 @@ print $prtCHN qq{
 	}
 
 	#print $prtCHN "\n";
-	print  "\n";
-	print  "max array size: $maxArraySize\n";
-	print  "curr SNMFC $totalSNMFCWaitTime\n";
-	print  " new SNMFC $totalNewSNMFCWaitTime\n";
+	print $prtCHN  "\n";
+	print $prtCHN  "    max array: size: $maxArraySize\n";
+	print $prtCHN  "   curr SNMFC: $totalSNMFCWaitTime\n";
+	print $prtCHN  "    new SNMFC: $totalNewSNMFCWaitTime\n";
+	print $prtCHN  "  SNMFC saved: " . ($totalSNMFCWaitTime - $totalNewSNMFCWaitTime) . "\n";
+	print $prtCHN "\n";
 
 }
 
