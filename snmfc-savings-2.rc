@@ -1,0 +1,163 @@
+
+--init='
+
+use warnings;
+use strict;
+
+my $debug;
+my $verbose;
+my $maxArraySize;
+
+# set to STDERR and redirect mrskew output to /dev/null to just see this output
+my $errCHN=\*STDERR;
+my $rptCHN=\*STDOUT;
+my $elapsed=0;
+my %cursorMetrics = ();
+my %snmfcMetrics = ();
+
+BEGIN {
+
+	print $errCHN ("This is the BEGIN\n") if $debug;
+	$debug = exists($ENV{DEBUG}) ? $ENV{DEBUG} : 0;	
+	$verbose = exists($ENV{VERBOSE}) ? $ENV{VERBOSE} : 0;	
+	$maxArraySize = exists($ENV{ARRAYSIZE}) ? $ENV{ARRAYSIZE} : 100;	
+
+}
+
+
+
+sub gatherData {
+
+	my ($sqlid, $execID, $name, $af, $row) = @_;
+
+	#print "name:  $name\n";
+
+	if ( $name =~ /message from client/ ) {
+		$cursorMetrics{$execID}->{SNMFC_TIME} += $af;
+		$cursorMetrics{$execID}->{SNMFC_COUNT}++;
+		$snmfcMetrics{TIME} += $af;
+		$snmfcMetrics{COUNT}++;
+		print "WAIT elapsed: $af\n" if $debug;
+	} elsif ( $name =~ /^FETCH/ ) {
+		$cursorMetrics{$execID}->{FETCH_COUNT}++;
+		$cursorMetrics{$execID}->{FETCH_ROWS} += $row;
+		print "FETCH Rows: $row\n" if $debug;
+	} else {
+		print $errCHN "gatherData(): should not receive this data\n";
+		print $errCHN qq{
+
+   name: $name
+  sqlid: $sqlid
+ execID: $execID
+
+};
+
+	die "quitting due to unknown data in gatherData()\n";
+		
+	}
+
+
+}
+
+
+END {
+
+	print $errCHN ("This is the END\n") if $debug;
+
+	print $errCHN ("DEBUG enabled\n") if $debug;	
+
+	my $snmfcAvgTime = $snmfcMetrics{TIME} / $snmfcMetrics{COUNT};
+
+	my ($totalSnmfcCOUNT, $totalSnmfcTIME,$optimizedSNMFC,$checkSNMFC) = (0,0,0,0);
+
+#################################################################
+foreach my $execID (keys %cursorMetrics) {
+   if (
+      exists $cursorMetrics{$execID}->{SNMFC_TIME}
+         and exists $cursorMetrics{$execID}->{SNMFC_COUNT}
+   ) {
+		my $txSnmfcTIME = $cursorMetrics{$execID}->{SNMFC_TIME};
+		my $txSnmfcCOUNT = $cursorMetrics{$execID}->{SNMFC_COUNT};
+		my $txRowCOUNT = exists $cursorMetrics{$execID}->{FETCH_ROWS} ? $cursorMetrics{$execID}->{FETCH_ROWS} : 0;
+		my $txFetchCOUNT = exists $cursorMetrics{$execID}->{FETCH_COUNT} ? $cursorMetrics{$execID}->{FETCH_COUNT} : 0;
+
+      $totalSnmfcTIME +=  $cursorMetrics{$execID}->{SNMFC_TIME};
+		$totalSnmfcCOUNT += $cursorMetrics{$execID}->{SNMFC_COUNT};
+      $checkSNMFC += $cursorMetrics{$execID}->{SNMFC_COUNT} * $snmfcAvgTime;
+
+      #$optimizedSNMFC += (int($maxArraySize % $cursorMetrics{$execID}->{SNMFC_COUNT} ) + 1) * $snmfcAvgTime;
+
+		my $avgArraySize = int($txRowCOUNT / $txSnmfcCOUNT)+1 ;
+
+		# determine new number of FETCHES x average SNMFC time
+      $optimizedSNMFC += (
+         int($cursorMetrics{$execID}->{SNMFC_COUNT} / ($maxArraySize / $avgArraySize) )
+         + ($cursorMetrics{$execID}->{SNMFC_COUNT} % ( $maxArraySize / $avgArraySize) )
+      ) * $snmfcAvgTime;
+
+      if ($debug) {
+         my $mod = int($cursorMetrics{$execID}->{SNMFC_COUNT} / $maxArraySize ) + ($cursorMetrics{$execID}->{SNMFC_COUNT} % $maxArraySize );
+         print qq{
+
+  for exec execID: $execID:
+
+     tx snmfc count: $txSnmfcCOUNT
+      tx snmfc time: $txSnmfcTIME
+       tx row count: $txRowCOUNT
+     tx fetch count: $txFetchCOUNT
+   total snmfc TIME: $totalSnmfcTIME
+  total snmfc COUNT: $totalSnmfcCOUNT
+        check SNMFC: $checkSNMFC
+          avg SNMFC: $snmfcAvgTime
+          opt SNMFC: $optimizedSNMFC
+     avg array size: $avgArraySize
+     max array size: $maxArraySize
+                mod: $mod
+
+};
+      }
+
+   }
+}
+
+#################################################################
+
+
+	print $rptCHN qq{
+  TIME: $snmfcMetrics{TIME}
+ COUNT: $snmfcMetrics{COUNT}
+   AVG: $snmfcAvgTime
+};
+
+
+# convert to seconds
+my $realSNMFCFormatted = sprintf(q{%06.6f},$totalSnmfcTIME);
+my $checkSNMFCFormatted = sprintf(q{%06.6f},$checkSNMFC);
+my $optimizedSNMFCFormatted = sprintf(q{%06.6f},$optimizedSNMFC);
+my $optimizedSNMFCSavingsFormatted = sprintf(q{%06.6f},($totalSnmfcTIME - $optimizedSNMFC));
+
+print qq{
+
+       real SNMFC: $realSNMFCFormatted
+      check SNMFC: $checkSNMFCFormatted
+  optimized SNMFC: $optimizedSNMFCFormatted
+       time saved: $optimizedSNMFCSavingsFormatted
+
+
+};
+
+
+}
+
+
+'
+
+--group='$sqlid . q{:} . $exec_id . q{:} . $line . $text . gatherData($sqlid, $exec_id, $name, $af, $row)'
+--nohistogram
+--top=1
+# FETCHES commonly exceed 1 second
+--where='($name =~ /message from client/ and $af < 1) or ( $name =~ /FETCH/)'
+
+
+
+
