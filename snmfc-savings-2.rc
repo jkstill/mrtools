@@ -4,26 +4,22 @@
 use warnings;
 use strict;
 
-my $debug;
-my $verbose;
-my $maxArraySize;
 
 # set to STDERR and redirect mrskew output to /dev/null to just see this output
 my $errCHN=\*STDERR;
 my $rptCHN=\*STDOUT;
 my $elapsed=0;
+
+# use DEBUG=1, DEBUG=2, ... mrskew...
+my $debug = exists($ENV{DEBUG}) ? $ENV{DEBUG} : 0;	
+print $errCHN ("DEBUG Enabled\n") if $debug;
+my $maxArraySize = exists($ENV{ARRAYSIZE}) ? $ENV{ARRAYSIZE} : 100;	
+
 my %cursorMetrics = ();
 my %snmfcMetrics = ();
 
 BEGIN {
-
-	print $errCHN ("This is the BEGIN\n") if $debug;
-	$debug = exists($ENV{DEBUG}) ? $ENV{DEBUG} : 0;	
-	$verbose = exists($ENV{VERBOSE}) ? $ENV{VERBOSE} : 0;	
-	$maxArraySize = exists($ENV{ARRAYSIZE}) ? $ENV{ARRAYSIZE} : 100;	
-
 }
-
 
 
 sub gatherData {
@@ -37,13 +33,15 @@ sub gatherData {
 		$cursorMetrics{$execID}->{SNMFC_COUNT}++;
 		$snmfcMetrics{TIME} += $af;
 		$snmfcMetrics{COUNT}++;
-		print "WAIT elapsed: $af\n" if $debug;
+		print $errCHN "WAIT elapsed: $af\n" if $debug > 1;
 	} elsif ( $name =~ /^FETCH/ ) {
 		$cursorMetrics{$execID}->{FETCH_COUNT}++;
 		$cursorMetrics{$execID}->{FETCH_ROWS} += $row;
-		print "FETCH Rows: $row\n" if $debug;
+		print $errCHN "FETCH Rows: $row\n" if $debug > 1;
 	} else {
+
 		print $errCHN "gatherData(): should not receive this data\n";
+
 		print $errCHN qq{
 
    name: $name
@@ -56,15 +54,17 @@ sub gatherData {
 		
 	}
 
-
 }
 
 
 END {
 
-	print $errCHN ("This is the END\n") if $debug;
+	# derived from testing data
+	# not accurate with benchmark data, but close enough for good estimates
+	# see array-size-tests.xlsx
+	my $overheadPerRow=0.00000149493000;
 
-	print $errCHN ("DEBUG enabled\n") if $debug;	
+	print $errCHN ("This is the END\n") if $debug;
 
 	my $snmfcAvgTime = $snmfcMetrics{TIME} / $snmfcMetrics{COUNT};
 
@@ -90,14 +90,23 @@ foreach my $execID (keys %cursorMetrics) {
 		my $avgArraySize = int($txRowCOUNT / $txSnmfcCOUNT)+1 ;
 
 		# determine new number of FETCHES x average SNMFC time
-      $optimizedSNMFC += (
-         int($cursorMetrics{$execID}->{SNMFC_COUNT} / ($maxArraySize / $avgArraySize) )
-         + ($cursorMetrics{$execID}->{SNMFC_COUNT} % ( $maxArraySize / $avgArraySize) )
-      ) * $snmfcAvgTime;
+		my $testArraySize =  $maxArraySize / $avgArraySize;
+		$testArraySize = 1 if $testArraySize < 1;  # avoid modulus 0 error
+      $optimizedSNMFC += 
+		(
+			(
+         	int($cursorMetrics{$execID}->{SNMFC_COUNT} / $testArraySize )
+         	+ ($cursorMetrics{$execID}->{SNMFC_COUNT} % $testArraySize )
+      	) * $snmfcAvgTime
+		) + ( $overheadPerRow * $txRowCOUNT) ;
 
       if ($debug) {
          my $mod = int($cursorMetrics{$execID}->{SNMFC_COUNT} / $maxArraySize ) + ($cursorMetrics{$execID}->{SNMFC_COUNT} % $maxArraySize );
-         print qq{
+
+			my $snmfcAvgTimeFormatted = sprintf(q{%0.6f},$snmfcAvgTime);
+			my $optimizedSNMFCFormatted = sprintf(q{%0.6f},$optimizedSNMFC);
+
+         print $errCHN qq{
 
   for exec execID: $execID:
 
@@ -108,13 +117,13 @@ foreach my $execID (keys %cursorMetrics) {
    total snmfc TIME: $totalSnmfcTIME
   total snmfc COUNT: $totalSnmfcCOUNT
         check SNMFC: $checkSNMFC
-          avg SNMFC: $snmfcAvgTime
-          opt SNMFC: $optimizedSNMFC
+          avg SNMFC: $snmfcAvgTimeFormatted
+          opt SNMFC: $optimizedSNMFCFormatted
      avg array size: $avgArraySize
      max array size: $maxArraySize
                 mod: $mod
 
-};
+} if $debug;
       }
 
    }
@@ -123,11 +132,11 @@ foreach my $execID (keys %cursorMetrics) {
 #################################################################
 
 
-	print $rptCHN qq{
+	print $errCHN qq{
   TIME: $snmfcMetrics{TIME}
  COUNT: $snmfcMetrics{COUNT}
    AVG: $snmfcAvgTime
-};
+} if $debug;
 
 
 # convert to seconds
@@ -136,7 +145,7 @@ my $checkSNMFCFormatted = sprintf(q{%06.6f},$checkSNMFC);
 my $optimizedSNMFCFormatted = sprintf(q{%06.6f},$optimizedSNMFC);
 my $optimizedSNMFCSavingsFormatted = sprintf(q{%06.6f},($totalSnmfcTIME - $optimizedSNMFC));
 
-print qq{
+print $rptCHN qq{
 
        real SNMFC: $realSNMFCFormatted
       check SNMFC: $checkSNMFCFormatted
@@ -153,7 +162,7 @@ print qq{
 '
 
 --group='$sqlid . q{:} . $exec_id . q{:} . $line . $text . gatherData($sqlid, $exec_id, $name, $af, $row)'
---nohistogram
+--nohistogram --nohead --nofoot --nodashes
 --top=1
 # FETCHES commonly exceed 1 second
 --where='($name =~ /message from client/ and $af < 1) or ( $name =~ /FETCH/)'
