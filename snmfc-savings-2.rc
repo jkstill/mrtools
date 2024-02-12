@@ -17,6 +17,7 @@ my $maxArraySize = exists($ENV{ARRAYSIZE}) ? $ENV{ARRAYSIZE} : 100;
 
 my %cursorMetrics = ();
 my %snmfcMetrics = ();
+my @snmfcTimes = ();
 
 BEGIN {
 }
@@ -33,6 +34,7 @@ sub gatherData {
 		$cursorMetrics{$execID}->{SNMFC_COUNT}++;
 		$snmfcMetrics{TIME} += $af;
 		$snmfcMetrics{COUNT}++;
+		push @snmfcTimes, $af;
 		print $errCHN "WAIT elapsed: $af\n" if $debug > 1;
 	} elsif ( $name =~ /^FETCH/ ) {
 		$cursorMetrics{$execID}->{FETCH_COUNT}++;
@@ -56,19 +58,38 @@ sub gatherData {
 
 }
 
+sub median {
+	my ($listRef,$sorted) = @_;
+
+	my @list;
+	if ($sorted) {
+		@list = @{$listRef};
+	} else {
+		@list = sort { $a <=> $b }  @{$listRef};
+	}
+
+	# list count
+	my $lc = $#list;
+	# .4 will cause the last value in the first half of an even numbered list to be the median
+	# .5 will cuse the first value in the second half of an even numbered list to be the median
+	my $medianLocation = int(( $lc / 2 ) + .4);
+	return $list[$medianLocation];
+}
+
 
 END {
 
-	# derived from testing data
-	# not accurate with benchmark data, but close enough for good estimates
-	# see array-size-tests.xlsx
-	my $overheadPerRow=0.00000149493000;
+# derived from testing data
+# not accurate with benchmark data, but close enough for good estimates
+# see array-size-tests.xlsx
+my $overheadPerRow=0.00000149493000;
 
-	print $errCHN ("This is the END\n") if $debug;
+print $errCHN ("This is the END\n") if $debug;
 
-	my $snmfcAvgTime = $snmfcMetrics{TIME} / $snmfcMetrics{COUNT};
+my $snmfcAvgTime = $snmfcMetrics{TIME} / $snmfcMetrics{COUNT};
+my $snmfcMedianTime = median(\@snmfcTimes,0);
 
-	my ($totalSnmfcCOUNT, $totalSnmfcTIME,$optimizedSNMFC,$checkSNMFC) = (0,0,0,0);
+my ($totalSnmfcCOUNT, $totalSnmfcTIME,$optimizedSNMFC,$checkSNMFC) = (0,0,0,0);
 
 #################################################################
 foreach my $execID (keys %cursorMetrics) {
@@ -92,18 +113,27 @@ foreach my $execID (keys %cursorMetrics) {
 		# determine new number of FETCHES x average SNMFC time
 		my $testArraySize =  $maxArraySize / $avgArraySize;
 		$testArraySize = 1 if $testArraySize < 1;  # avoid modulus 0 error
+
+		# try calculating the local average for use in prediction
+		# did not seem to make much difference
+		#$snmfcAvgTime = $txSnmfcTIME / $txSnmfcCOUNT;
+
+		my $snmfcCalcTime = $snmfcAvgTime;
+		#$snmfcCalcTime = $snmfcMedianTime; # median often results in results that are too optimistic
+		
       $optimizedSNMFC += 
 		(
 			(
          	int($cursorMetrics{$execID}->{SNMFC_COUNT} / $testArraySize )
          	+ ($cursorMetrics{$execID}->{SNMFC_COUNT} % $testArraySize )
-      	) * $snmfcAvgTime
+      	) * $snmfcCalcTime
 		) + ( $overheadPerRow * $txRowCOUNT) ;
 
       if ($debug) {
          my $mod = int($cursorMetrics{$execID}->{SNMFC_COUNT} / $maxArraySize ) + ($cursorMetrics{$execID}->{SNMFC_COUNT} % $maxArraySize );
 
 			my $snmfcAvgTimeFormatted = sprintf(q{%0.6f},$snmfcAvgTime);
+			my $snmfcMedianTimeFormatted = sprintf(q{%0.6f},$snmfcMedianTime);
 			my $optimizedSNMFCFormatted = sprintf(q{%0.6f},$optimizedSNMFC);
 
          print $errCHN qq{
@@ -118,6 +148,7 @@ foreach my $execID (keys %cursorMetrics) {
   total snmfc COUNT: $totalSnmfcCOUNT
         check SNMFC: $checkSNMFC
           avg SNMFC: $snmfcAvgTimeFormatted
+       median SNMFC: $snmfcMedianTimeFormatted
           opt SNMFC: $optimizedSNMFCFormatted
      avg array size: $avgArraySize
      max array size: $maxArraySize
@@ -132,7 +163,7 @@ foreach my $execID (keys %cursorMetrics) {
 #################################################################
 
 
-	print $errCHN qq{
+print $errCHN qq{
   TIME: $snmfcMetrics{TIME}
  COUNT: $snmfcMetrics{COUNT}
    AVG: $snmfcAvgTime
@@ -152,12 +183,10 @@ print $rptCHN qq{
   optimized SNMFC: $optimizedSNMFCFormatted
        time saved: $optimizedSNMFCSavingsFormatted
 
-
 };
 
 
 }
-
 
 '
 
