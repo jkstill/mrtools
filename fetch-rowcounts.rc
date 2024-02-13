@@ -1,0 +1,28 @@
+
+
+--init='
+my $callNameLen=6;
+my $rowCountLen=4;
+
+sub getGrpLabel {
+	my $callDesc = sprintf(qq{%${callNameLen}s:},q{CALL});
+	my $countDesc=  sprintf(qq{%${rowCountLen}s},q{N} x $rowCountLen);
+	my $ret = $callDesc . $countDesc;
+	return $ret;
+}
+
+sub getGrpName {
+	my ($callName, $rowCount) = @_;
+	$callName = sprintf(qq{%${callNameLen}s},$callName);
+	$rowCount = sprintf(qq{%0${rowCountLen}d},$rowCount);
+	return "$callName:$rowCount";
+}
+
+'
+
+--where='$nam eq q{FETCH} or ($name eq q{EXEC} and $r>0)' 
+--group='getGrpName($nam,$r)' 
+# calling a function from --gl is not working
+#--group-label="getGrpLabel()"
+--group-label="sprintf('%6s','CALL') . ':NNNN'"
+
