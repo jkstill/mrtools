@@ -20,13 +20,10 @@ sub getGrpName {
 
 '
 
-# removed the rows condition on EXEC
-# it would be good to see EXEC were r=0 so that the number of EXEC can be compared to FETCH with r=1
-# get those EXEC that are for a SELECT statement.  The method for this is not exact, but adequate for these purposes
-#--where='$nam eq q{FETCH} or ($name eq q{EXEC} and $r>0)' 
---where='$nam eq q{FETCH} or ($name eq q{EXEC} and $sql =~ /\bSELECT\b/i)' 
+# command type 3 is SELECT - see v$sqlcommand
+--where='$nam eq q{FETCH} or ($name eq q{EXEC} and $oct == 3)' 
 --group='getGrpName($nam,$r)' 
-# calling a function from --gl is not working
+# calling a function from --gl is not working - there is a fix coming for this
 #--group-label="getGrpLabel()"
 --group-label="sprintf('%6s','CALL') . ':NNNN'"
 
