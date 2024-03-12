@@ -1,4 +1,0 @@
-# Group by an "island ID" that resets upon each occurrence of a long-latency SNMFC call.
---group='$base . ":" . $island_id'
---group-label='FILE:ISLAND-ID'
---where='$island_id > 0'

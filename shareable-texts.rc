@@ -1,7 +1,0 @@
-# Show texts of statements that could have been shared, and how much time their PARSE calls consumed.
-#
-
---name=parse
---group='sprintf("[$ssqlid] %.50s", $ssql)'
---gl='[S-SQL-ID] SHAREABLE-TEXT'
---where='$sqlid !~ /^#/'
