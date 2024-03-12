@@ -4,6 +4,8 @@
 use warnings;
 use strict;
 
+# snmfc-savings-2.rc
+# Jared Still 2024
 
 # set to STDERR and redirect mrskew output to /dev/null to just see this output
 my $errCHN=\*STDERR;
