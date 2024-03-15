@@ -194,7 +194,7 @@ print $rptCHN qq{
 
 --group='$sqlid . q{:} . $exec_id . q{:} . $line . $text . gatherData($sqlid, $exec_id, $name, $af, $row)'
 --nohistogram --nohead --nofoot --nodashes
---top=1
+--top=none
 # FETCHES commonly exceed 1 second
 --where='($name =~ /message from client/ and $af < 1) or ( $name =~ /FETCH/)'
 
