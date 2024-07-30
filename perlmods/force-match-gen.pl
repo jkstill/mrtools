@@ -25,7 +25,9 @@ my $file='ForceMatch.pm';
 
 open (my $fh, '>>' , $file ) || die "could not open $file for append - $!\n";
 
-print $fh "my %reverseMatched = (\n";
+print $fh "\n" . q{sub getRevHash { return \%reverseMatched; };} . "\n\n";
+
+print $fh "our %reverseMatched = (\n";
 
 foreach my $forceMatchedID ( keys %reverseMatched) {
 
@@ -40,5 +42,6 @@ foreach my $forceMatchedID ( keys %reverseMatched) {
 
 }
 
-print $fh ");\n";
-print $fh "1;\n";
+print $fh ");\n\n";
+print $fh "1;\n\n";
+
