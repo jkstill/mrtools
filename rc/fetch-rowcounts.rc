@@ -1,0 +1,30 @@
+
+
+--init='
+my $callNameLen=6;
+my $rowCountLen=4;
+
+sub getGrpLabel {
+	my $callDesc = sprintf(qq{%${callNameLen}s:},q{CALL});
+	my $countDesc=  sprintf(qq{%${rowCountLen}s},q{N} x $rowCountLen);
+	my $ret = $callDesc . $countDesc;
+	return $ret;
+}
+
+sub getGrpName {
+	my ($callName, $rowCount) = @_;
+	$callName = sprintf(qq{%${callNameLen}s},$callName);
+	$rowCount = sprintf(qq{%0${rowCountLen}d},$rowCount);
+	return "$callName:$rowCount";
+}
+
+'
+
+# command type 3 is SELECT - see v$sqlcommand
+# changed from where to where1 - did not always find fetch due to depmin
+--where1='$nam eq q{FETCH} or ($name eq q{EXEC} and $oct == 3)' 
+--group='getGrpName($nam,$r)' 
+# calling a function from --gl is not working - there is a fix coming for this
+#--group-label="getGrpLabel()"
+--group-label="sprintf('%6s','CALL') . ':NNNN'"
+

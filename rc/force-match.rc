@@ -1,0 +1,93 @@
+# force-match.rc
+
+--init='
+
+use warnings;
+use strict;
+use ForceMatch;
+
+my %forceMatched = %{ForceMatch::getHash()};
+my %reverseMatched = %{ForceMatch::getRevHash()};
+
+# set to STDERR and redirect mrskew output to /dev/null to just see this output
+my $errCHN=\*STDERR;
+my $rptCHN=\*STDOUT;
+
+# use DEBUG=1, DEBUG=2, ... mrskew...
+my $debug = exists($ENV{DEBUG}) ? $ENV{DEBUG} : 0;
+print $errCHN ("DEBUG Enabled\n") if $debug;
+
+if ($debug) {
+	my $i=0;
+	foreach my $key ( keys %forceMatched ) {
+		print $rptCHN "key: $key  val: $forceMatched{$key}\n";
+		last if $i++ > 10;
+	}
+}
+
+my %forceMatchedTimes = ();
+my $na=q{NA};
+
+BEGIN {
+}
+
+
+sub getForceMatchID {
+	my ($sqlid) = @_;
+	if ( exists($forceMatched{$sqlid} )) {
+		return $forceMatchedTimes{ $forceMatched{$sqlid} };
+	};
+	return $na;
+}
+
+sub gatherData {
+
+	my ($sqlid, $af) = @_;
+
+	if ( exists($forceMatched{$sqlid})) {
+		$forceMatchedTimes{ $forceMatched{$sqlid} } += $af;
+	} else {
+		$forceMatchedTimes{$na} += $af;
+	};
+
+}
+
+END {
+
+print $errCHN ("This is the END\n") if $debug;
+
+
+#################################################################
+foreach my $forceMatchedID	 ( reverse sort { $forceMatchedTimes{$a} <=> $forceMatchedTimes{$b} } keys %forceMatchedTimes	) {
+
+	my @test = ();
+	if (exists($reverseMatched{$forceMatchedID})) {
+		@test = @{$reverseMatched{$forceMatchedID}};
+	}
+
+	# output only if 2+ sqlid for the forcematch signature
+	if ( $#test > 1 ) {
+
+		my $forceMatchedTimeFormatted =	sprintf(q{%06.6f}, $forceMatchedTimes{$forceMatchedID});
+		print $rptCHN qq{
+		forceMatchedID: $forceMatchedID
+					time: $forceMatchedTimes{$forceMatchedID}
+		};
+
+	};
+
+}
+} # END
+
+#################################################################
+
+
+'
+
+--group='getForceMatchID($sqlid) . q{:} . gatherData($sqlid, $af )'
+--nohistogram --nohead --nofoot --nodashes
+--top=1
+# FETCHES commonly exceed 1 second
+# exclude SNMFC >= 1 second
+--where='($name =~ q{message from client} and $af < 1) or ! ( $name =~ q{message from client})'
+
