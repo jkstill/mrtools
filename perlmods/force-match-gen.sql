@@ -53,7 +53,6 @@ from (
 /
 
 prompt );;
-prompt 1;;
 prompt
 
 spool off
@@ -65,14 +64,9 @@ set linesize 80
 set pagesize 100
 set head on
 
+-- add the reverse match data
 
-prompt
+host perl force-match-gen.pl
 
-spool off
+host perl -cw ForceMatch.pm
 
-
-set feed on
-set term on
-set linesize 80
-set pagesize 100
-set head on
