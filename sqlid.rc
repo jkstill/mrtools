@@ -1,4 +1,5 @@
 
 
---group='$sqlid . q{:} . substr($sql,0,60)'  --rc=cull-snmfc.rc
+--group='$sqlid . q{:} . substr($sql,0,60)'
+--rc=cull-snmfc.rc
 
