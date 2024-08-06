@@ -30,11 +30,11 @@ my $blocksReadMultipleTimes=0;
 my $verbose = $ENV{MRTOOLS_VERBOSE} || 0;
 
 sub getBlockMetrics {
-  my ($obj, $file, $block, $accountedFortime) = @_;
-  $totalTime += $accountedFortime;
-  $totalCalls++;
-  print "object: $obj file: $file block: $block\n" if $debug;
-	$blockMetrics{$obj}{$file}{$block}++;
+	my ($obj, $file, $block, $blocks, $accountedFortime) = @_;
+	$totalTime += $accountedFortime;
+	$totalCalls++;
+	print "object: $obj file: $file block: $block\n" if $debug;
+	$blockMetrics{$obj}{$file}{$block} += $blocks;
 }
 
 
@@ -75,7 +75,7 @@ printf "Seconds saved if all multiple block reads were eliminated: %6.2f\n\n", $
 --name='db file sequential read'
 #--where1='$action_id = q{WAIT}'
 
---group='getBlockMetrics($obj, $p1, $p2, $af)'
+--group='getBlockMetrics($obj, $p1, $p2, $p3, $af)'
 --nohistogram --nohead --nofoot --nodashes
 --top=none
 
