@@ -51,5 +51,6 @@ sub normalizeSQL {
 # normalize the SQL - compact space and replace literals
 # output can be used to analyze sql using literal, that should be using bind values
 --group='$sqlid . q{:} . normalizeSQL($sql)'
+--where1='$dep == $depmin'
 
 
