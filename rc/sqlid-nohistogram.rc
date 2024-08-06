@@ -1,0 +1,55 @@
+
+# calling another rc file probably needs to be at the top.
+
+--rc=cull-snmfc.rc
+
+--init='
+
+=head1 sqlid-nohistogram.rc
+
+ normalize SQL
+ output sqlid:sql
+
+ output can be use to analyze sql statements that are using literals, but should be using bind values.
+
+
+=cut
+
+use warnings;
+use strict;
+
+sub stripTrailingSpace {
+  my $s = shift;
+  $s =~ s/\s+$//;
+  return $s;
+}
+
+my $re = chr(39) . q{(.+)} . chr(39);
+my $rp = chr(39) . q{NRML} . chr(39);
+
+my $re2 = q{(\([[:digit:]]+)\)} ;
+my $rp2 =  q{(1234)} ;
+
+sub normalizeSQL {
+  my $s = shift;
+  $s =~ s/\s+/ /g;
+  $s =~ s/^\s+//;
+  $s =~ s/\s+$//;
+  $s =~ s/$re/$rp/g;
+  $s =~ s/$re2/$rp2/g;
+  return $s;
+}
+
+'
+
+--nohistogram --nohead --nofoot --nodashes
+--top=0
+
+# This should strip trailing spaces, but does not seem to work.
+#--group='$sqlid . q{:} . stripTrailingSpace($sql)'
+
+# normalize the SQL - compact space and replace literals
+# output can be used to analyze sql using literal, that should be using bind values
+--group='$sqlid . q{:} . normalizeSQL($sql)'
+
+
