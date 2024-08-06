@@ -1,0 +1,78 @@
+
+--init='
+
+# sequential-read.rc
+# Jared Still 2024
+
+use warnings;
+use strict;
+
+=head1 sequential-read.rc
+
+ calculate the savings if multiple reads of the same block were eliminated
+
+ optionally, show the blocks that are read multiple times
+
+   mrskew --rc=sequential-read.rc  orcl_ora_1234.trc
+
+ To show block read multiple times:
+
+   MRTOOLS_VERBOSE=1 mrskew --rc=sequential-read.rc  orcl_ora_1234.trc
+
+=cut
+
+my $debug=0;
+
+my %blockMetrics=();
+my $totalTime=0;
+my $totalCalls=0;
+my $verbose = $ENV{MRTOOLS_VERBOSE} || 0;
+
+sub getBlockMetrics {
+  my ($obj, $file, $block, $accountedFortime) = @_;
+  $totalTime += $accountedFortime;
+  $totalCalls++;
+  print "object: $obj file: $file block: $block\n" if $debug;
+	$blockMetrics{$obj}{$file}{$block}++;
+}
+
+
+END {
+
+my $avgDbCallTime = $totalTime / $totalCalls;
+
+my $totalMultipleBlocks=0;
+
+foreach my $obj (keys %blockMetrics) {
+  my $fileMetrics = $blockMetrics{$obj};
+  foreach my $file (keys %$fileMetrics) {
+	 my $localBlockMetrics = $fileMetrics->{$file};
+	 foreach my $block (keys %$localBlockMetrics) {
+		printf "%s:%s:%s:%d\n", $obj, $file, $block, $localBlockMetrics->{$block} if $localBlockMetrics->{$block} > 1 && $verbose;
+		if ( $localBlockMetrics->{$block} > 1) {
+		  $totalMultipleBlocks += $localBlockMetrics->{$block}-1;
+		}
+	 }
+  }
+}
+
+printf "\nTotal multiple block reads: %d\n", $totalMultipleBlocks;
+
+printf "Seconds saved if all multiple block reads were eliminated: %6.2f\n\n", $totalMultipleBlocks * $avgDbCallTime;
+
+
+}
+
+'
+
+# this would also work, but the output is not quite what I wanted
+#--name='db file sequential read'
+#--group='"$obj:$p1:$p2"'
+
+--name='db file sequential read'
+#--where1='$action_id = q{WAIT}'
+
+--group='getBlockMetrics($obj, $p1, $p2, $af)'
+--nohistogram --nohead --nofoot --nodashes
+--top=none
+

@@ -1,0 +1,5 @@
+
+# no-snmfc.rc
+
+--where1='( $name !~ /message (from|to) client/)'
+
