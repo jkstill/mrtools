@@ -1,5 +1,6 @@
 
 --init='
+# calls-totaled-2.rc
 # sub total, by depth ($dep)
 # subtotals for possible future use
 my @subtotals=(0,0,0,0,0,0,0);
@@ -63,5 +64,4 @@ sub getString($) {
 --group-label='"          END-TIM       LINE   PARSE-ID    EXEC-ID  CALL-NAME(BOUND-VALUES)                  STATEMENT-TEXT                                                Elapsed         Total"'
 
 --alldepths --nohistogram --sort=1na --name=:dbcall --top=0
-
 

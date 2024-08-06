@@ -89,5 +89,5 @@ foreach my $forceMatchedID	 ( reverse sort { $forceMatchedTimes{$a} <=> $forceMa
 --top=1
 # FETCHES commonly exceed 1 second
 # exclude SNMFC >= 1 second
---where='($name =~ q{message from client} and $af < 1) or ! ( $name =~ q{message from client})'
+--where1='($name =~ q{message from client} and $af < 1) or ! ( $name =~ q{message from client})'
 

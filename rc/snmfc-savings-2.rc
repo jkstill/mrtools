@@ -196,7 +196,7 @@ print $rptCHN qq{
 --nohistogram --nohead --nofoot --nodashes
 --top=none
 # FETCHES commonly exceed 1 second
---where='($name =~ /message from client/ and $af < 1) or ( $name =~ /FETCH/)'
+--where1='($name =~ /message from client/ and $af < 1) or ( $name =~ /FETCH/)'
 
 
 

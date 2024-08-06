@@ -35,11 +35,11 @@ use strict;
 
 =head2 filtering
 
- Since this RC file is using `--where`, it will be necessary to use `--where1` for any additional filtering
+ Since this RC file is using `--where1`, it will be necessary to use `--where` for any additional filtering
 
  eg:
 
- $  mrskew --rc=snmfc-savings.rc --where1=$sqlid eq q{8j53dscbsbqmb} trace/ORCL_ora_42088.trc
+ $  mrskew --rc=snmfc-savings.rc --where=$sqlid eq q{8j53dscbsbqmb} trace/ORCL_ora_42088.trc
  $sqlid . q{:} . $exec_id . q{:} . $line . $text . syscallStats($sqlid, $exec_id, $name, $af, $row)
  -----------------------------------------------------------------------------------------------------------------------------------------------------------
  8j53dscbsbqmb:313824:313830WAIT #47761333763336: nam=SQL*Net message from client ela= 799028 driver id=1413697536 #bytes=1 p3=0 obj#=-1 tim=3591980340533
@@ -364,9 +364,9 @@ print $errCHN qq{
 --nohistogram
 --top=1
 #--name='(message from client|FETCH)'
-#--where='$af < 1'
-# the 'where' with $af needs to change, as FETCHES commonly exceed 1 second
---where='($name =~ q{message from client} and $af < 1) or ( $name =~ q{FETCH})'
+#--where1='$af < 1'
+# the 'where1' with $af needs to change, as FETCHES commonly exceed 1 second
+--where1='($name =~ q{message from client} and $af < 1) or ( $name =~ q{FETCH})'
 
 
 
