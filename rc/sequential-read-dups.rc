@@ -1,23 +1,23 @@
 
 --init='
 
-# sequential-read.rc
+# sequential-read-dups.rc
 # Jared Still 2024
 
 use warnings;
 use strict;
 
-=head1 sequential-read.rc
+=head1 sequential-read-dups.rc
 
  calculate the savings if multiple reads of the same block were eliminated
 
  optionally, show the blocks that are read multiple times
 
-   mrskew --rc=sequential-read.rc  orcl_ora_1234.trc
+   mrskew --rc=sequential-read-dups.rc  orcl_ora_1234.trc
 
  To show block read multiple times:
 
-   MRTOOLS_VERBOSE=1 mrskew --rc=sequential-read.rc  orcl_ora_1234.trc
+   MRTOOLS_VERBOSE=1 mrskew --rc=sequential-read-dups.rc  orcl_ora_1234.trc
 
 =cut
 
@@ -26,6 +26,7 @@ my $debug=0;
 my %blockMetrics=();
 my $totalTime=0;
 my $totalCalls=0;
+my $blocksReadMultipleTimes=0;
 my $verbose = $ENV{MRTOOLS_VERBOSE} || 0;
 
 sub getBlockMetrics {
@@ -41,7 +42,7 @@ END {
 
 my $avgDbCallTime = $totalTime / $totalCalls;
 
-my $totalMultipleBlocks=0;
+my $totalMultipleBlockReads=0;
 
 foreach my $obj (keys %blockMetrics) {
   my $fileMetrics = $blockMetrics{$obj};
@@ -50,16 +51,18 @@ foreach my $obj (keys %blockMetrics) {
 	 foreach my $block (keys %$localBlockMetrics) {
 		printf "%s:%s:%s:%d\n", $obj, $file, $block, $localBlockMetrics->{$block} if $localBlockMetrics->{$block} > 1 && $verbose;
 		if ( $localBlockMetrics->{$block} > 1) {
-		  $totalMultipleBlocks += $localBlockMetrics->{$block}-1;
+		  $totalMultipleBlockReads += $localBlockMetrics->{$block}-1;
+		  $blocksReadMultipleTimes++;
 		}
 	 }
   }
 }
 
-printf "\nTotal multiple block reads: %d\n", $totalMultipleBlocks;
+printf "\nTotal blocks read multiple times: %d\n", $blocksReadMultipleTimes;
+printf "Total multiple block reads: %d\n", $totalMultipleBlockReads;
+printf "Avg number of extra reads for blocks read multiple times: %6.2f\n", $totalMultipleBlockReads / $blocksReadMultipleTimes;
 
-printf "Seconds saved if all multiple block reads were eliminated: %6.2f\n\n", $totalMultipleBlocks * $avgDbCallTime;
-
+printf "Seconds saved if all multiple block reads were eliminated: %6.2f\n\n", $totalMultipleBlockReads * $avgDbCallTime;
 
 }
 
