@@ -19,6 +19,9 @@ use strict;
 
    MRTOOLS_VERBOSE=1 mrskew --rc=sequential-read-dups.rc  orcl_ora_1234.trc
 
+ see https://github.com/jkstill/oracle-script-lib/blob/master/sql/event-names.sql 
+ for the values of $p1, $p2 and $p3 per event
+
 =cut
 
 my $debug=0;
