@@ -11,6 +11,7 @@ use strict;
 my $errCHN=\*STDERR;
 my $rptCHN=\*STDOUT;
 my $elapsed=0;
+my $snmfcThreshold=1;
 
 # use DEBUG=1, DEBUG=2, ... mrskew...
 my $debug = exists($ENV{DEBUG}) ? $ENV{DEBUG} : 0;	
@@ -32,6 +33,10 @@ sub gatherData {
 	#print "name:  $name\n";
 
 	if ( $name =~ /message from client/ ) {
+		# skipping the lengthy SNMFS does not seem to be necessary, 
+		# as they are not normally seen in a transaction anyway
+		# adding this did not change results in testing, so leaving it in.
+		next if $af >= $snmfcThreshold;
 		$cursorMetrics{$execID}->{SNMFC_TIME} += $af;
 		$cursorMetrics{$execID}->{SNMFC_COUNT}++;
 		$snmfcMetrics{TIME} += $af;
@@ -156,7 +161,7 @@ foreach my $execID (keys %cursorMetrics) {
      max array size: $maxArraySize
                 mod: $mod
 
-};
+} if $debug;
       }
 
    }
@@ -196,7 +201,7 @@ print $rptCHN qq{
 --nohistogram --nohead --nofoot --nodashes
 --top=none
 # FETCHES commonly exceed 1 second
---where1='($name =~ /message from client/ and $af < 1) or ( $name =~ /FETCH/)'
+--where='($name =~ /message from client/ and $af < 1) or ( $name =~ /FETCH/)'
 
 
 
