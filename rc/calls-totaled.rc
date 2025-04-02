@@ -112,14 +112,21 @@ sub getString($) {
 }
 '
 
+# first option uses $e for elapsed time
+# second option uses $af for accounted for time
 # with $dep
 #--group='sprintf("%17.6f %10d %10d %10d %4s %-40.40s %13s %-.46s %6.6f %13s", $tim, $line, $parse_id, $exec_id,$dep, "· "x$dep.$name.(scalar(@bind)?"(".join(",",@bind).")":""), substr($sqlid,0,13), "· "x$dep.substr($sql . " "x46,0,46),$e, getString( getTotal($e) ))'
-#                                        12345678901234567 1234567890 1234567890 1234567890 1234567890123456789012345678901234567890 123..                                                                                                  00000.00000
-#--group-label='"         END-TIM       LINE   PARSE-ID    EXEC-ID  DEP CALL-NAME(BOUND-VALUES)                  SQLID         STATEMENT-TEXT                                 Elapsed          Total"'
+# use the following to get accounted for time rather than elapsed time
+--group='sprintf("%17.6f %10d %10d %10d %4s %-40.40s %13s %-.46s %6.6f %13s", $tim, $line, $parse_id, $exec_id,$dep, "· "x$dep.$name.(scalar(@bind)?"(".join(",",@bind).")":""), substr($sqlid,0,13), "· "x$dep.substr($sql . " "x46,0,46),$af, getString( getTotal($af) ))'
+--group-label='"         END-TIM       LINE   PARSE-ID    EXEC-ID  DEP CALL-NAME(BOUND-VALUES)                  SQLID         STATEMENT-TEXT                                 Elapsed          Total"'
 
---group='sprintf("%17.6f %10d %10d %10d  %-40.40s %13s %-.46s %6.6f %13s", $tim, $line, $parse_id, $exec_id, "· "x$dep.$name.(scalar(@bind)?"(".join(",",@bind).")":""), substr($sqlid,0,13), "· "x$dep.substr($sql . " "x46,0,46),$e, getString( getTotal($e) ))'
-#                                        12345678901234567 1234567890 1234567890 1234567890 1234567890123456789012345678901234567890 123..                                                                                                  00000.00000
---group-label='"         END-TIM       LINE   PARSE-ID    EXEC-ID  CALL-NAME(BOUND-VALUES)                  SQLID         STATEMENT-TEXT                                 Elapsed          Total"'
+# without $dep
+#--group='sprintf("%17.6f %10d %10d %10d  %-40.40s %13s %-.46s %6.6f %13s", $tim, $line, $parse_id, $exec_id, "· "x$dep.$name.(scalar(@bind)?"(".join(",",@bind).")":""), substr($sqlid,0,13), "· "x$dep.substr($sql . " "x46,0,46),$e, getString( getTotal($e) ))'
+#--group-label='"         END-TIM       LINE   PARSE-ID    EXEC-ID  CALL-NAME(BOUND-VALUES)                  SQLID         STATEMENT-TEXT                                 Elapsed          Total"'
 
---alldepths --nohistogram --sort=1na --name=:dbcall --top=0
+# first option gets only dbcalss
+# second option gets all events
+#--alldepths --nohistogram --sort=1na --name=:dbcall --top=0
+# use the following to get all events
+--alldepths --nohistogram --sort=1na --top=0
 
