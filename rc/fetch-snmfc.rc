@@ -22,7 +22,7 @@ sub getGrpName {
 
 # command type 3 is SELECT - see v$sqlcommand
 # changed from where to where1 - did not always find fetch due to depmin
---where1='$nam eq q{FETCH} or ($name eq q{EXEC} and $oct == 3)' 
+--where1='$nam eq q{FETCH} or ($name eq q{EXEC} and $oct == 3) or $name =~/message (to|from) client/' 
 --group='getGrpName($nam,$r)' 
 # calling a function from --gl is not working - there is a fix coming for this
 --group-label="getGrpLabel()"
