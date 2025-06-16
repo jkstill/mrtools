@@ -1,0 +1,174 @@
+# cull-snmfc.rc
+# Jared Still 2023
+# jkstill@gmail.com
+# exlude snmfc (SQL*Net message from client) if >= 1 second
+# exclude many 'idle' events
+
+--init='
+
+=encoding utf8
+
+=cut
+
+use strict;
+use warnings;
+
+my @idleEvents = (
+q{AQ Cross Master idle},
+q{AQ: 12c message cache init wait},
+q{AQPC idle},
+q{ASM background timer},
+q{ASM cluster membership changes},
+q{Backup Appliance Comm SGA setup wait},
+q{Backup Appliance Servlet wait},
+q{Backup Appliance Surrogate wait},
+q{Backup Appliance waiting for work},
+q{Backup Appliance waiting restore start},
+q{DBWR timer},
+q{DIAG idle wait},
+q{DNFS disp IO slave idle},
+q{Data Guard: Gap Manager},
+q{Data Guard: Timer},
+q{Data Guard: controlfile update},
+q{EMON slave idle wait},
+q{Emon coordinator main loop},
+q{Emon slave main loop},
+q{GCR sleep},
+q{HS message to agent},
+q{IMFS defer writes scheduler},
+q{IORM Scheduler Slave Idle Wait},
+q{JOX Jit Process Sleep},
+q{JS external job},
+q{LGWR real time apply sync},
+q{LGWR worker group idle},
+q{LMS CR slave timer},
+q{LNS ASYNC archive log},
+q{LNS ASYNC dest activation},
+q{LNS ASYNC end of log},
+q{LogMiner builder: branch},
+q{LogMiner builder: idle},
+q{LogMiner client: transaction},
+q{LogMiner merger: idle},
+q{LogMiner preparer: idle},
+q{LogMiner reader: log (idle)},
+q{LogMiner reader: redo (idle)},
+q{LogMiner: activate},
+q{LogMiner: find session},
+q{LogMiner: internal},
+q{LogMiner: other},
+q{LogMiner: reset},
+q{Logical Standby Apply Delay},
+q{MRP redo arrival},
+q{OFS Receive Queue},
+q{OFS idle},
+q{PING},
+q{PL/SQL lock timer},
+q{PX Deq Credit: need buffer},
+q{PX Deq Credit: send blkd},
+q{PX Deq: Execute Reply},
+q{PX Deq: Execution Msg},
+q{PX Deq: Index Merge Close},
+q{PX Deq: Index Merge Execute},
+q{PX Deq: Index Merge Reply},
+q{PX Deq: Metadata Update},
+q{PX Deq: Msg Fragment},
+q{PX Deq: Parse Reply},
+q{PX Deq: Table Q Normal},
+q{PX Deq: Table Q Sample},
+q{PX Deq: Txn Recovery Reply},
+q{PX Deq: Txn Recovery Start},
+q{PX Deq: kdcph_mai},
+q{PX Deq: kdcphc_ack},
+q{PX Deque wait},
+q{PX Idle Wait},
+q{REPL Apply: txns},
+q{REPL Capture/Apply: RAC AQ qmn coordinator},
+q{REPL Capture/Apply: messages},
+q{REPL Capture: archive log},
+q{RMA: IPC0 completion sync},
+q{SCM slave idle},
+q{SGA: MMAN sleep for component shrink},
+q{SQL*Net message from client},
+#q{SQL*Net message to client},  # used for script validation only - when uncommented, this event should not appear in the report
+q{SQL*Net vector message from client},
+q{SQL*Net vector message from dblink},
+q{Sharded  Queues : Part Maintenance idle},
+q{Sharded  Queues : Part Truncate idle},
+q{Space Manager: slave idle wait},
+q{Streams AQ: deallocate messages from Streams Pool},
+q{Streams AQ: delete acknowledged messages},
+q{Streams AQ: emn coordinator idle wait},
+q{Streams AQ: load balancer idle},
+q{Streams AQ: opt idle},
+q{Streams AQ: qmn coordinator idle wait},
+q{Streams AQ: qmn slave idle wait},
+q{Streams AQ: waiting for messages in the queue},
+q{Streams AQ: waiting for time management or cleanup tasks},
+q{VKRM Idle},
+q{VKTM Init Wait for GSGA},
+q{VKTM Logical Idle Wait},
+q{WCR: replay client notify},
+q{WCR: replay clock},
+q{WCR: replay paused},
+q{auto-sqltune: wait graph update},
+q{block compare coord process idle},
+q{cell worker idle},
+q{class slave wait},
+q{cmon timer},
+q{dispatcher timer},
+q{fbar timer},
+q{gcs remote message},
+q{gcs yield cpu},
+q{ges remote message},
+q{gopp msg},
+q{heartbeat monitor sleep},
+q{heartbeat redo informer},
+q{i/o slave wait},
+q{imco timer},
+q{iowp file id},
+q{iowp msg},
+q{jobq slave wait},
+q{lreg timer},
+q{memoptimize write drain idle},
+q{netp network},
+q{nologging fetch slave idle},
+q{parallel recovery control message reply},
+q{parallel recovery coordinator idle wait},
+q{parallel recovery coordinator waits for slave cleanup},
+q{parallel recovery slave idle wait},
+q{parallel recovery slave next change},
+q{pipe get},
+q{pman timer},
+q{pmon timer},
+q{pool server timer},
+q{process in prespawned state},
+q{rdbms ipc message},
+q{recovery coordinator idle},
+q{recovery logmerger idle},
+q{recovery receiver idle},
+q{recovery sender idle},
+q{shared server idle wait},
+q{simulated log write delay},
+q{single-task message},
+q{smon timer},
+q{virtual circuit next request},
+q{wait for unread message on broadcast channel},
+q{wait for unread message on multiple broadcast channels},
+q{watchdog main loop}
+);
+
+sub isIdleEvent($) {
+	 my $name = shift;
+	 # how does this line work?
+	 # it returns true if the event name is in the @idleEvents array
+	 # grep returns a list of matching elements, if any
+	 return grep { $_ eq $name } @idleEvents;
+}
+
+'
+
+# useful for database level trace files
+# lots of system waits to cull
+--where1='($name =~ q{message from client} and $af < 1) or ! isIdleEvent($name)'
+
+
