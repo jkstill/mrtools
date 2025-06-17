@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+# demo of SQLNormalizer module
+#
 use strict;
 use warnings;
 use lib './';
