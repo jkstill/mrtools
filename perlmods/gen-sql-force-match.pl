@@ -1,0 +1,172 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Data::Dumper;
+use IO::File;
+use lib './';
+use SQLNormalizer;
+
+=head1 gen-sql-force-match.pl
+
+ walk a directory and find all trace files
+ get the SQL statements from them
+ then build the force match info and save to ForceMatch.pm
+
+ the force matching used here is not the same as that used by oracle
+ these force match signatures are generated for offline use, no database connection needed
+
+=cut
+
+=head2 usage
+
+ gen-sql-force-match.pl [directory]
+
+ where directory is the directory to search for trace files
+ if no directory is specified, it defaults to the current directory
+
+=cut
+
+
+sub dirwalk {
+    my ($folder,$fileArrayRef) = @_;
+
+    opendir (my $dir, $folder);
+    my @files = readdir ($dir);
+    closedir ($dir);
+
+    foreach my $file (@files) {
+        next if ($file eq "." || $file eq "..");
+
+        my $path = "$folder/$file";
+        if ( -d $path ) {
+            dirwalk($path,$fileArrayRef); 
+        } elsif ( -f $path) {
+			  #print "Processing file: $path\n";
+				push @{$fileArrayRef}, $path if ($path =~ /\.trc$/);
+		  } 
+    }
+}
+
+my @traceFiles;
+
+dirwalk($ARGV[0] // '.', \@traceFiles);
+
+#print Dumper(\@traceFiles), "\n";
+
+#exit;
+
+my $sqlBuffer = '';
+my $buildingSQL = 0;
+my $sqlID = '';
+
+my %sqlStatements = ();
+
+foreach my $file (@traceFiles) {
+	warn "$file\n";
+	my $fh = IO::File->new($file, 'r') or warn "Could not open file '$file' $!";
+
+	while (my $line = <$fh>) {
+		#chomp $line;
+
+		#print "$line\n";
+		if ($line =~ /^PARSING IN (.*)/) {
+			# the sql_id is the last part of the line
+			# PARSING IN CURSOR #140160515628888 len=521 dep=0 uid=538 oct=3 lid=538 tim=18168548508973 hv=1025626002 ad='45cbca7c8' sqlid='44fw65cyk3mwk'
+			$sqlBuffer = '';  # Reset buffer for new SQL
+			$buildingSQL = 1;
+			$line =~ /sqlid='([^']+)'/;  # Capture the SQL ID
+			$sqlID = $1;
+			next;
+		} elsif ($line =~ /^END OF STMT/) {
+			#print "$sqlID: $sqlBuffer\n";
+			$sqlStatements{$sqlID} = $sqlBuffer unless exists $sqlStatements{$sqlID};
+			$sqlBuffer = '';  # Reset buffer after processing
+			$buildingSQL = 0;
+			$sqlID = '';
+		}
+
+		if ($buildingSQL) {
+			$sqlBuffer .= $line . ' ' ;
+		}
+
+	}
+
+	$fh->close();
+}
+
+
+my %forceMatch = ();
+my $normalizer = SQLNormalizer->new();
+
+foreach my $sqlID ( keys %sqlStatements ) {
+	my $normalizedSQL = $normalizer->normalize($sqlStatements{$sqlID}) ;
+	my $customSignature = $normalizer->generate_signature($normalizedSQL);
+	#print "SQL ID: $sqlID custom signature: $customSignature\n";
+	$forceMatch{$sqlID} = $customSignature;
+}
+
+#print Dumper(\%forceMatch);
+#exit;
+
+my %reverseMatched = ();
+
+foreach my $sqlid ( keys %sqlStatements ) {
+	#print "sqlid: $sqlid\n";
+	push @{$reverseMatched{$forceMatch{$sqlid}}}, $sqlid;
+}
+
+#print Dumper(\%reverseMatched);
+
+my $file='ForceMatch.pm';
+$file='TestMatch.pm';
+
+open (my $fh, '>' , $file ) || die "could not open $file for create - $!\n";
+
+print $fh <<"EOF";
+
+package ForceMatch;
+
+sub getHash { return \%forceMatch; };
+
+our %forceMatch = ();
+
+%forceMatch = (
+EOF
+
+foreach my $sqlID ( sort keys %forceMatch ) {
+	 my $signature = $forceMatch{$sqlID};
+	 print $fh "  '$sqlID' => '$signature',\n";
+}
+
+print $fh <<"EOF";
+);
+
+sub getRevHash { return \%reverseMatched; };
+
+our %reverseMatched = (
+EOF
+
+foreach my $forceMatchedID ( sort keys %reverseMatched) {
+
+   print $fh "\t'$forceMatchedID' => [\n";
+
+   #my @s = @{$reverseMatched{$forceMatchedID]
+   foreach my $sqlid ( @{$reverseMatched{$forceMatchedID}} ) {
+      print $fh  "\t\t'$sqlid',\n";
+   }
+
+   print $fh "\t],\n";
+
+}
+
+
+print $fh <<"EOF";
+);
+1;  # End of package
+EOF
+
+close($fh) or die "Could not close file '$file' $!";
+print "ForceMatch.pm created successfully with ", scalar(keys %forceMatch), " entries.\n";
+
+

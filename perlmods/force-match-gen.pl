@@ -44,4 +44,3 @@ foreach my $forceMatchedID ( keys %reverseMatched) {
 
 print $fh ");\n\n";
 print $fh "1;\n\n";
-
