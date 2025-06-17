@@ -63,7 +63,7 @@ my $sqlID = '';
 my %sqlStatements = ();
 
 foreach my $file (@traceFiles) {
-	warn "$file\n";
+	#warn "$file\n";
 	my $fh = IO::File->new($file, 'r') or warn "Could not open file '$file' $!";
 
 	while (my $line = <$fh>) {
@@ -119,7 +119,6 @@ foreach my $sqlid ( keys %sqlStatements ) {
 #print Dumper(\%reverseMatched);
 
 my $file='ForceMatch.pm';
-$file='TestMatch.pm';
 
 open (my $fh, '>' , $file ) || die "could not open $file for create - $!\n";
 
