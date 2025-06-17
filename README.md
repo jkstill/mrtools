@@ -2,7 +2,7 @@
 mrtools repo
 ============
 
-A central repository for the MRTools files.
+A central repository for my MRTools files.
 
 Distribution
 
