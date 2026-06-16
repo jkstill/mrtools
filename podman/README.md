@@ -58,8 +58,7 @@ Useful for debugging.
 ```bash
 podman run --rm -it \
   -v /usr/share/mrtools:/usr/share/mrtools:ro,z \
-  -v "$HOME/oracle":"$HOME/oracle":z \
-  -v "$HOME/tmp":"$HOME/tmp":z \
+  -v "$HOME/":"$HOME/":z \
   -v "$PWD":"$PWD":z \
   -w "$PWD" \
   -v "$HOME/.mrtools":/home/mruser/.mrtools:z \
@@ -68,7 +67,7 @@ podman run --rm -it \
   -e HOME=/home/mruser \
   -e USER="$USER" \
   -e MRTOOLS_RCPATH=/home/mruser/.mrtools/rc:/usr/share/mrtools/rc \
-  localhost/mrtools-runner
+  localhost/mrtools-runner 
 ```
 
 ## Performance
