@@ -5,8 +5,7 @@ for cmd in mr1011 mrcrop mrkey mrprof mrprofk mrskew mrwhen mrworkbench; do
 #!/usr/bin/env bash
 exec podman run --rm -i \\
   -v /usr/share/mrtools:/usr/share/mrtools:ro,z \\
-  -v "\$HOME/oracle":"\$HOME/oracle":z \\
-  -v "\$HOME/tmp":"\$HOME/tmp":z \\
+  -v "\$HOME/":"\$HOME/":z \\
   -v "\$PWD":"\$PWD":z \\
   -w "\$PWD" \\
   -v "\$HOME/.mrtools":/home/mruser/.mrtools:z \\

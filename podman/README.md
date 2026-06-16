@@ -14,7 +14,9 @@ podman build -t mrtools-runner .
 
 Now there are wrapper scripts for each of the Method R tools in the current directory.
 
-These lines in the wrapper script mount these directories in the container:
+These lines in the wrapper script mounts the `$HOME` directory inside the container, so you can access your files there.
+
+In my case, I have the directories '/home/jkstill/' mounted as read-write, and the current directory mounted read-write as well.
 
 ```bash
   -v "\$HOME/oracle":"\$HOME/oracle":z \\
@@ -24,11 +26,6 @@ These lines in the wrapper script mount these directories in the container:
 ```
 
 The container runs as root.
-
-The `$HOME/oracle` directory is mounted read-write, so you can write output files there.
-
-In my case, the container has the directories '/home/jkstill/oracle', '/home/jkstill/tmp'  and the current directory mounted read-write.
-
 You can run them as you would normally, and they will execute inside the container. For example:
 
 ```bash
@@ -40,7 +37,6 @@ $ mrskew --version
 ```bash
 $ mrskew some-trace-file.trc
 ```
-
 If your get a pathing error, keep in mind where things are mounted. 
 
 For example, if you have a trace file in the current directory, it will be available in the container at the same path. 
