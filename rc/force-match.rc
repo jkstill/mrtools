@@ -36,8 +36,8 @@ my %reverseMatched = %{ForceMatch::getRevHash()};
 my $errCHN=\*STDERR;
 my $rptCHN=\*STDOUT;
 
-# use DEBUG=1, DEBUG=2, ... mrskew...
-my $debug = exists($ENV{DEBUG}) ? $ENV{DEBUG} : 0;
+# use MRTOOLS_DEBUG=1, MRTOOLS_DEBUG=2, ... mrskew...
+my $debug = exists($ENV{MRTOOLS_DEBUG}) ? $ENV{MRTOOLS_DEBUG} : 0;
 print $errCHN ("DEBUG Enabled\n") if $debug;
 
 if ($debug) {

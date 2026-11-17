@@ -107,7 +107,7 @@ Once installed, the agent will automatically trigger the skill when you ask task
 - *"Why are we seeing high `SQL*Net message from client` waits in this trace?"*
 - *"Isolate the user experience in this connection-pooled trace file."*
 - *"Check for hard parse storms or unshareable SQL statements."*
-- *"Model how much time we would save if we increase the fetch array size to 500."*
+- *"Model how much time we would save if we increase the fetch array size."*
 - *"Give me the mrskew commands to profile CPU vs wait time."*
 
 ---
@@ -140,7 +140,7 @@ mrskew --where='$sqlid eq "TARGET_SQLID"' --select='$row' --sl='"ROWS"' my_trace
 
 #### Step 4: Model Time Saved by Fetch Array Sizing
 ```bash
-ARRAYSIZE=500 mrskew --rc=snmfc-savings-2.rc my_trace.trc
+mrskew --rc=snmfc-savings-2.rc my_trace.trc
 ```
 *Output prints real network wait time, predicted optimized wait time, and net seconds saved.*
 
@@ -186,7 +186,7 @@ mrskew --name='db file sequential read' --rc=p10.rc my_trace.trc
 [Step 4: Deep-Dive Root Cause Analysis for Target SQL ID]
   ├─► Check Ten-LIO Rule:      mrskew --where='$sqlid eq "<ID>"' --select='$lio' / --select='$row'
   ├─► Check Array Sizing:      mrskew --rc=fetch-rowcounts.rc <file>
-  ├─► Model Array Size Savings:ARRAYSIZE=500 mrskew --rc=snmfc-savings-2.rc <file>
+  ├─► Model Array Size Savings:mrskew --rc=snmfc-savings-2.rc <file>
   ├─► Check Binds:             mrskew --where='$sqlid eq "<ID>"' --group='join(",",@bind)'
   ├─► Check Duplicate Reads:   mrskew --rc=sequential-read-dups.rc <file>
   └─► Check Parse Skew:        mrskew --rc=distinct-texts.rc <file>
@@ -208,7 +208,7 @@ mrskew --name='db file sequential read' --rc=p10.rc my_trace.trc
 | **Top SQL Statements by CPU** | `mrskew --group='$sqlid' --select='$cpu' --sl='"CPU"' --where1=1 <file.trc>` |
 | **Top SQL Statements by LIO** | `mrskew --group='$sqlid' --select='$lio' --sl='"LIO"' --where1=1 <file.trc>` |
 | **Fetch Row Count Distribution** | `mrskew --rc=fetch-rowcounts.rc <file.trc>` |
-| **Simulate Array Size Tuning** | `ARRAYSIZE=500 mrskew --rc=snmfc-savings-2.rc <file.trc>` |
+| **Simulate Array Size Tuning** | `mrskew --rc=snmfc-savings-2.rc <file.trc>` |
 | **I/O Latency Power-of-10 Buckets** | `mrskew --name='db file sequential read' --rc=p10.rc <file.trc>` |
 | **Detect Duplicate Block Reads** | `mrskew --rc=sequential-read-dups.rc <file.trc>` |
 | **Detect Literal Parsing Storms** | `mrskew --rc=distinct-texts.rc <file.trc>` |
@@ -231,5 +231,6 @@ method-r-trace-analyzer/
     ├── mrcrop-reference.md                   # All 6 cropping subcommands (island, datetime, sqlid, experience, etc.)
     ├── auxiliary-tools-reference.md          # mrkey (pipeline chaining), mrwhen (timestamps), mr1011 (format upgrade)
     ├── oracle-trace-collection-guide.md      # Safe collection with DBMS_MONITOR, parameters, cloud environments
-    └── recipes-and-cheatsheet.md             # Copy-pasteable recipes for humans and agents
+    ├── recipes-and-cheatsheet.md             # Copy-pasteable recipes for humans and agents
+    └── array-fetch-sizing.md                 # Single-row query detection, snmfc-savings-2.rc, oraaccess.xml
 ```

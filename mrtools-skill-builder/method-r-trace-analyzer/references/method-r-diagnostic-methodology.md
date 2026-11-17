@@ -100,9 +100,11 @@ The 10-LIO rule does **not** apply to:
   - High `FETCH` call counts approximately equal to row count ($r \approx 1$ per fetch).
   - High ratio of network round trips to rows returned.
 - **Root Cause**: Client application loop fetching rows one at a time (e.g., default JDBC/ODBC array size of 1 or 10) instead of batch/array fetching.
+- **Rule Out First**: Single-row queries executed many times also produce one short SNMFC per FETCH. If FETCH calls per EXEC is about 1, array size cannot help; reduce the number of executions instead. Confirm material savings with `snmfc-savings-2.rc` before recommending a change (see [Array Fetch Sizing](array-fetch-sizing.md)).
 - **Actionable Remedy**:
   - Increase the client-side fetch array size (`defaultRowPrefetch` in JDBC, `arraysize` in Python/cx_Oracle/oracledb, `FETCH FIRST n ROWS` or bulk arrays in C#/ODP.NET) to 100 or 500.
   - In PL/SQL, use `BULK COLLECT INTO ... LIMIT 500`.
+  - When application code cannot be changed, OCI-based clients (SQL*Plus, DBD::Oracle, cx_Oracle, JDBC OCI) can take a default prefetch row count from `oraaccess.xml`.
 - **Expected Impact**: Reduces network round trips and wait durations by 90-98%, slashing client latency.
 
 ### Antipattern 2: Unnecessary Full Table / Index Scans (Missing or Ineffective Index)
