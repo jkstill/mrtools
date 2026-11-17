@@ -43,7 +43,7 @@ Method R tools automatically search `MRTOOLS_RCPATH` (configured as `~/.mrtools/
 - `cull-idle.rc`: Filters out 80+ Oracle background/idle wait events for database-level traces.
 - `sqlid.rc`: Ranks top SQL statements (`$sqlid:substr($sql,0,60)`) with automatic idle culling.
 - `fetch-rowcounts.rc`: Profiles dbcalls by row count (`EXEC:0001`, `FETCH:0025`) to audit fetch array sizing.
-- `snmfc-savings-2.rc`: Interactively models time saved by increasing array size (`ARRAYSIZE=500`).
+- `snmfc-savings-2.rc`: Estimates SNMFC time saved by a larger array size (default model: 100 rows); single-row executions contribute no savings.
 - `sequential-read-dups.rc`: Detects multiple reads of identical blocks and calculates potential I/O time saved.
 - `calls-totaled-2.rc`: Emits chronological execution narrative with timestamps, SQL IDs, and subcall totals.
 
@@ -85,7 +85,7 @@ When presented with one or more Oracle trace files, follow this 5-step diagnosti
 [Step 4: Deep-Dive Root Cause Analysis for Target SQL ID]
   ├─► Check Ten-LIO Rule:      mrskew --where='$sqlid eq "<ID>"' --select='$lio' / --select='$row'
   ├─► Check Array Sizing:      mrskew --rc=fetch-rowcounts.rc <file>
-  ├─► Model Array Size Savings:ARRAYSIZE=500 mrskew --rc=snmfc-savings-2.rc <file>
+  ├─► Model Array Size Savings:mrskew --rc=snmfc-savings-2.rc <file>
   ├─► Check Binds:             mrskew --where='$sqlid eq "<ID>"' --group='join(",",@bind)'
   ├─► Check Duplicate Reads:   mrskew --rc=sequential-read-dups.rc <file>
   └─► Check Parse Skew:        mrskew --rc=distinct-texts.rc <file>
@@ -168,7 +168,15 @@ When an application uses default array sizes (e.g., 1 or 10 rows), it incurs a n
 mrskew --where='$sqlid eq "<SQL_ID>"' <tracefile>
 ```
 *Indicator*: If `FETCH` count and `SQL*Net message from client` count are large and nearly identical to rows returned, array fetching is not configured.
-*Remedy*: Increase client-side fetch array size (`defaultRowPrefetch`, `arraysize`, or PL/SQL `BULK COLLECT LIMIT`) to 100 or 500.
+
+**First rule out single-row queries.** Array size only helps when one execution needs more than one FETCH. Compare EXEC calls, FETCH calls, and rows:
+```bash
+mrskew --name='^(EXEC|FETCH)$' --where='$sqlid eq q{<SQL_ID>}' --group='$nam' --select='$r' --sl=ROWS <tracefile>
+```
+If FETCH/EXEC is about 1 (including single-row lookups with rows/EXEC <= 1), array size cannot help; the round trips come from many executions, so the lever is to execute less often.
+
+**Then estimate savings** with `mrskew --rc=snmfc-savings-2.rc <tracefile>` (single-row executions are excluded) and compare `time saved` with culled R from `mrskew --rc=cull-snmfc.rc <tracefile> | tail -1`. Under 5% of R (or under about 1 second): do **not** recommend an array size change. 5% to 10%: low-priority option. 10% or more: recommend it.
+*Remedy*: Increase client fetch array size (`defaultRowPrefetch`, `arraysize`, PL/SQL `BULK COLLECT LIMIT`) to about 100, or, when code cannot change, set a default prefetch in `oraaccess.xml` for OCI-based clients. See [Array Fetch Sizing](references/array-fetch-sizing.md).
 
 ### 6. Diagnosing Hard Parsing & Unshareable SQL
 Detect if literal values are preventing SQL statement sharing in the library cache:
@@ -235,3 +243,4 @@ To maintain cross-platform portability:
 - **[Method R Diagnostic Methodology](references/method-r-diagnostic-methodology.md)**: Response time theory, Three Axioms, Ten-LIO rule, Amdahl's Law, and antipattern remedies.
 - **[Oracle Trace Collection Guide](references/oracle-trace-collection-guide.md)**: Safe collection using `DBMS_MONITOR`, parameters, trace hygiene, and cloud platforms.
 - **[Recipes & Cheatsheet](references/recipes-and-cheatsheet.md)**: Fast copy-paste recipes for common performance questions.
+- **[Array Fetch Sizing](references/array-fetch-sizing.md)**: Recognizing single-row queries, estimating savings with `snmfc-savings-2.rc`, when not to recommend a change, and setting array size in applications or `oraaccess.xml`.

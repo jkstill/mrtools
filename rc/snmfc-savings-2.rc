@@ -13,10 +13,10 @@ my $rptCHN=\*STDOUT;
 my $elapsed=0;
 my $snmfcThreshold=1;
 
-# use DEBUG=1, DEBUG=2, ... mrskew...
-my $debug = exists($ENV{DEBUG}) ? $ENV{DEBUG} : 0;	
+# use MRTOOLS_DEBUG=1, MRTOOLS_DEBUG=2, ... mrskew...
+my $debug = exists($ENV{MRTOOLS_DEBUG}) ? $ENV{MRTOOLS_DEBUG} : 0;	
 print $errCHN ("DEBUG Enabled\n") if $debug;
-my $maxArraySize = exists($ENV{ARRAYSIZE}) ? $ENV{ARRAYSIZE} : 100;	
+my $maxArraySize = exists($ENV{MRTOOLS_ARRAYSIZE}) ? $ENV{MRTOOLS_ARRAYSIZE} : 100;	
 
 my %cursorMetrics = ();
 my %snmfcMetrics = ();
@@ -117,9 +117,17 @@ foreach my $execID (keys %cursorMetrics) {
 
 		my $avgArraySize = int($txRowCOUNT / $txSnmfcCOUNT)+1 ;
 
-		# determine new number of FETCHES x average SNMFC time
-		my $testArraySize =  $maxArraySize / $avgArraySize;
-		$testArraySize = 1 if $testArraySize < 1;  # avoid modulus 0 error
+		# Only FETCH round trips can be removed by a larger array size.
+		# New fetch count is ceil(rows / maxArraySize), at least 1.
+		# Executions returning 0 or 1 rows (single-row queries) save nothing,
+		# nor do round trips not tied to a FETCH (EXEC, PL/SQL, LOB calls).
+		my $savedFetches = 0;
+		if ( $txRowCOUNT > 1 ) {
+			my $newFetches = int( ($txRowCOUNT + $maxArraySize - 1) / $maxArraySize );
+			$newFetches = 1 if $newFetches < 1;
+			$savedFetches = $txFetchCOUNT - $newFetches;
+			$savedFetches = 0 if $savedFetches < 0;
+		}
 
 		# try calculating the local average for use in prediction
 		# did not seem to make much difference
@@ -131,14 +139,11 @@ foreach my $execID (keys %cursorMetrics) {
       $optimizedSNMFC += 
 		(
 			(
-         	int($cursorMetrics{$execID}->{SNMFC_COUNT} / $testArraySize )
-         	+ ($cursorMetrics{$execID}->{SNMFC_COUNT} % $testArraySize )
+         	$cursorMetrics{$execID}->{SNMFC_COUNT} - $savedFetches
       	) * $snmfcCalcTime
 		) + ( $overheadPerRow * $txRowCOUNT) ;
 
       if ($debug) {
-         my $mod = int($cursorMetrics{$execID}->{SNMFC_COUNT} / $maxArraySize ) + ($cursorMetrics{$execID}->{SNMFC_COUNT} % $maxArraySize );
-
 			my $snmfcAvgTimeFormatted = sprintf(q{%0.6f},$snmfcAvgTime);
 			my $snmfcMedianTimeFormatted = sprintf(q{%0.6f},$snmfcMedianTime);
 			my $optimizedSNMFCFormatted = sprintf(q{%0.6f},$optimizedSNMFC);
@@ -159,7 +164,7 @@ foreach my $execID (keys %cursorMetrics) {
           opt SNMFC: $optimizedSNMFCFormatted
      avg array size: $avgArraySize
      max array size: $maxArraySize
-                mod: $mod
+      saved fetches: $savedFetches
 
 } if $debug;
       }

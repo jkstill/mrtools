@@ -132,17 +132,18 @@ mrskew --rc=fetch-rowcounts.rc <tracefile>
 ```
 
 ### 4. Predict Time Saved by Increasing Array Size (~/.mrtools/rc)
-Mathematically simulates network round-trip savings by testing target array sizes (e.g., `ARRAYSIZE=100` or `500`):
+Estimates network round-trip savings at the default modeled array size of 100. Only FETCH round trips are saved; executions returning at most one row (single-row queries) contribute no savings:
 ```bash
-ARRAYSIZE=500 mrskew --rc=snmfc-savings-2.rc <tracefile>
+mrskew --rc=snmfc-savings-2.rc <tracefile>
 ```
+*Evaluation*: Compare `time saved` with culled R (`mrskew --rc=cull-snmfc.rc <tracefile> | tail -1`). Under 5% (or under about 1 second): do not recommend an array size change. See [Array Fetch Sizing](array-fetch-sizing.md).
 
 ### 5. Check for Row-by-Row Fetching (Network Round Trips)
 ```bash
 mrskew --where='$sqlid eq "<SQL_ID>" and $call =~ /FETCH|SQL\*Net message/' \
   --group='$call' <tracefile>
 ```
-*Evaluation*: If `SQL*Net message from client` call count is large and roughly equal to row count, the client application is fetching row-by-row. Recommend increasing fetch array size.
+*Evaluation*: If `SQL*Net message from client` call count is large and roughly equal to row count, the client application is fetching row-by-row. Before recommending a larger fetch array size, confirm FETCH calls per EXEC is well above 1; a single-row query executed many times shows the same counts but gains nothing from array size.
 
 ### 6. Inspect Placeholder Bind Variable Values
 ```bash

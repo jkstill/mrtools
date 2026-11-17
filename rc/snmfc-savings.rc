@@ -16,12 +16,12 @@ use strict;
 
  Can call with these set on the command line
 
- - DEBUG=1
- - VERBOSE=1
- - ARRAYSIZE=N - default to 100
- - TCPTIME=N - default 0.001
+ - MRTOOLS_DEBUG=1
+ - MRTOOLS_VERBOSE=1
+ - MRTOOLS_ARRAYSIZE=N - default to 100
+ - MRTOOLS_TCPTIME=N - default 0.001
 
-   ARRAYSIZE=1000 mrskew --rc=snmfc-savings.rc  trace/benchmark/cdb2_ora_24316_RC-1.trc  >/dev/null
+   MRTOOLS_ARRAYSIZE=1000 mrskew --rc=snmfc-savings.rc  trace/benchmark/cdb2_ora_24316_RC-1.trc  >/dev/null
 
    max array size: 100
    curr SNMFC 16.2403130000004
@@ -71,10 +71,10 @@ BEGIN {
 
 	print $errCHN ("This is the BEGIN\n") if $debug;
 
-	$debug = exists($ENV{DEBUG}) ? $ENV{DEBUG} : 0;	
-	$verbose = exists($ENV{VERBOSE}) ? $ENV{VERBOSE} : 0;	
-	$maxArraySize = exists($ENV{ARRAYSIZE}) ? $ENV{ARRAYSIZE} : 100;	
-	$tcpTime = exists($ENV{TCPTIME}) ? $ENV{TCPTIME} : 0.001;
+	$debug = exists($ENV{MRTOOLS_DEBUG}) ? $ENV{MRTOOLS_DEBUG} : 0;	
+	$verbose = exists($ENV{MRTOOLS_VERBOSE}) ? $ENV{MRTOOLS_VERBOSE} : 0;	
+	$maxArraySize = exists($ENV{MRTOOLS_ARRAYSIZE}) ? $ENV{MRTOOLS_ARRAYSIZE} : 100;	
+	$tcpTime = exists($ENV{MRTOOLS_TCPTIME}) ? $ENV{MRTOOLS_TCPTIME} : 0.001;
 
 }
 

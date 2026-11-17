@@ -3,7 +3,14 @@
 for cmd in mr1011 mrcrop mrkey mrprof mrprofk mrskew mrwhen; do
   sudo tee /usr/local/bin/$cmd >/dev/null <<EOF
 #!/usr/bin/env bash
+# pass exported MRTOOLS_* variables (e.g. MRTOOLS_DEBUG, MRTOOLS_ARRAYSIZE) into the container
+# MRTOOLS_RCPATH is excluded, as it must point to container paths (set below)
+env_args=()
+for v in \$(compgen -e); do
+  [[ \$v == MRTOOLS_* && \$v != MRTOOLS_RCPATH ]] && env_args+=(-e "\$v")
+done
 exec podman run --rm -i \\
+  "\${env_args[@]}" \\
   -v /usr/share/mrtools:/usr/share/mrtools:ro,z \\
   -v "\$HOME/":"\$HOME/":z \\
   -v "\$PWD":"\$PWD":z \\
