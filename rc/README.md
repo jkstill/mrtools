@@ -11,6 +11,45 @@ snmfc-savings.rc
 sqlid.rc
 
 
+## MRTOOLS_ Environment Variables
+
+Some rc files read settings from environment variables, so behavior can be changed without editing the rc file.
+
+The variables are read when mrskew evaluates the `--init` block, so set them on the same command line as mrskew, or export them first.
+
+```text
+# set for a single run
+$  MRTOOLS_ARRAYSIZE=500 mrskew --rc=snmfc-savings-2.rc trace/orcl_ora_1234.trc
+
+# set for the rest of the shell session
+$  export MRTOOLS_DEBUG=1
+$  mrskew --rc=force-match.rc trace/orcl_ora_1234.trc
+$  unset MRTOOLS_DEBUG
+```
+
+| Variable           | Default | Used by                                                    | Purpose |
+|--------------------|---------|------------------------------------------------------------|---------|
+| MRTOOLS_DEBUG      | 0       | snmfc-savings-2.rc, snmfc-savings.rc, force-match.rc       | Debug output to STDERR. snmfc-savings-2.rc prints per-WAIT and per-FETCH detail when set to 2 or higher. |
+| MRTOOLS_VERBOSE    | 0       | snmfc-savings.rc, sequential-read-dups.rc                  | Extra detail. In sequential-read-dups.rc, lists each block read more than once as obj:file:block:count. |
+| MRTOOLS_ARRAYSIZE  | 100     | snmfc-savings-2.rc, snmfc-savings.rc                       | The array (fetch) size to model when estimating SNMFC savings. |
+| MRTOOLS_TCPTIME    | 0.001   | snmfc-savings.rc                                           | Per-round-trip TCP time. Currently read but not used in the calculation. |
+
+Debug and verbose output goes to STDERR, so redirect STDOUT to see only that output:
+
+```text
+$  MRTOOLS_DEBUG=2 mrskew --rc=snmfc-savings-2.rc trace/orcl_ora_1234.trc >/dev/null
+```
+
+Compare savings at several array sizes:
+
+```text
+$  for size in 50 100 500 1000; do
+     echo "arraysize: $size"
+     MRTOOLS_ARRAYSIZE=$size mrskew --rc=snmfc-savings-2.rc trace/orcl_ora_1234.trc
+   done
+```
+
+
 ## FlameGraphs
 
 Generate data for flamegraphs.
